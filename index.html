@@ -4,12 +4,15 @@
   <meta charset="UTF-8" />
   <title>CVNet Community Calendar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Main calendar logic (loads all the JSON files and renders cards) -->
   <script src="calendar.js" defer></script>
 </head>
 <body>
+  <!-- Page Header -->
   <header>
     <h1>CVNet Community Calendar</h1>
 
+    <!-- Top navigation: goes to other pages -->
     <nav aria-label="Primary CVNet navigation">
       <a href="index.html">Back to Main CVNet</a> |
       <a href="online-resources.html">Online Resources</a> |
@@ -29,6 +32,7 @@
   </header>
 
   <main>
+    <!-- MENU OPTIONS (category menu = only filter) -->
     <section aria-labelledby="calendar-menu-heading">
       <h2 id="calendar-menu-heading">Browse by category</h2>
       <p>Select a category to display calendar items.</p>
@@ -59,6 +63,7 @@
           Grad Programs
         </button>
 
+        <!-- These three are wired for future use (once their JSON is normalized). -->
         <button type="button" data-filter-tag="jobs">
           Jobs
         </button>
@@ -73,10 +78,12 @@
       </nav>
     </section>
 
+    <!-- MAIN CALENDAR LIST CONTAINER -->
     <section aria-labelledby="calendar-results-heading">
       <h2 id="calendar-results-heading">Calendar items</h2>
 
       <div id="calendar-list">
+        <!-- Initial content is replaced by calendar.js once JSON is loaded -->
         <p id="calendar-loading-message">
           Loading items…
         </p>
