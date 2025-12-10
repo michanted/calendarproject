@@ -229,7 +229,8 @@ function eventMatchesTime(event) {
 }
 
 function eventMatchesTag(event) {
-  if (!currentTagFilter) return true;
+  // If no category is chosen, don't show anything.
+  if (!currentTagFilter) return false;
   if (!Array.isArray(event.tags)) return false;
   return event.tags.includes(currentTagFilter);
 }
@@ -337,14 +338,23 @@ function renderCalendar(events) {
   // Clear previous content
   listEl.innerHTML = "";
 
-  if (!Array.isArray(events) || events.length === 0) {
+if (!Array.isArray(events) || events.length === 0) {
+  if (!currentTagFilter) {
     listEl.innerHTML = `
       <p class="cv-calendar-empty">
-        No items match the current filters. Try changing the type, time window, or tags.
+        No category chosen.
       </p>
     `;
-    return;
+  } else {
+    listEl.innerHTML = `
+      <p class="cv-calendar-empty">
+        No items match the current filters.
+      </p>
+    `;
   }
+  return;
+}
+
 
   events.forEach(event => {
     const card = createEventCard(event);
@@ -409,22 +419,34 @@ function setupFilterButtons() {
   });
 
   // Tag buttons
-  const tagButtons = document.querySelectorAll("[data-filter-tag]");
-  tagButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tag = btn.dataset.filterTag || null;
-      if (currentTagFilter === tag) {
-        currentTagFilter = null;
-        btn.classList.remove("is-active");
-      } else {
-        currentTagFilter = tag;
-        tagButtons.forEach(b => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
-      }
+const tagButtons = document.querySelectorAll("[data-filter-tag]");
+tagButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const raw = btn.dataset.filterTag;
+    const tag = raw === "" ? null : raw;
+
+    // CLEAR button (data-filter-tag="") → always reset to "no category chosen"
+    if (tag === null) {
+      currentTagFilter = null;
+      tagButtons.forEach(b => b.classList.remove("is-active"));
       applyFiltersAndRender();
-    });
+      return;
+    }
+
+    // Normal category buttons: toggle on/off
+    if (currentTagFilter === tag) {
+      currentTagFilter = null;
+      tagButtons.forEach(b => b.classList.remove("is-active"));
+    } else {
+      currentTagFilter = tag;
+      tagButtons.forEach(b => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+    }
+
+    applyFiltersAndRender();
   });
-}
+});
+
 
 // ======================= DATA LOADING =======================
 
