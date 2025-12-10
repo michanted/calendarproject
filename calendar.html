@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CVNet Community Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Main calendar logic (loads all the JSON files and renders cards) -->
+  <script src="calendar.js" defer></script>
+</head>
+<body>
+  <!-- Page Header -->
+  <header>
+    <h1>CVNet Community Calendar</h1>
+
+    <!-- Top navigation: goes to other pages -->
+    <nav aria-label="Primary CVNet navigation">
+      <a href="index.html">Back to Main CVNet</a> |
+      <a href="online-resources.html">Online Resources</a> |
+      <a href="journals.html">Journals</a>
+    </nav>
+
+    <p>
+      This page lists upcoming <strong>conferences, courses, talks, jobs</strong>, and <strong>funding opportunities</strong> for the color &amp; vision research community. Send additions or corrections to
+    <a href="mailto:davidpeterzell@mac.com">davidpeterzell@mac.com</a> and
+    <a href="mailto:mtedesco12@gmail.com">mtedesco12@gmail.com</a>. Additional opportunities can be found in the
+    <a href="https://cvnet.org/mailman/listinfo/cvnet">CVNet Archive</a> and the
+    <a href="http://visionscience.com/pipermail/visionlist_visionscience.com">VisionList Archive</a>.
+    </p>
+  </header>
+
+  <main>
+    <!-- MENU OPTIONS (your “filing cabinet” side menu concept, but plain HTML) -->
+    <section aria-labelledby="calendar-menu-heading">
+      <h2 id="calendar-menu-heading">Browse by category</h2>
+      <p>Select a category to focus the calendar on a particular slice.</p>
+
+      <!--
+        These buttons hook into calendar.js via data-filter-tag.
+        Tags currently used in calendar.js normalization:
+          - conferences
+          - online
+          - special-issue
+          - education
+          - grad-program
+        Jobs / Funding / Competitions are future-proofed here.
+      -->
+      <nav aria-label="Calendar categories">
+        <button type="button" data-filter-tag="conferences">
+          Conferences
+        </button>
+
+        <button type="button" data-filter-tag="online">
+          Online Seminars/Clubs
+        </button>
+
+        <button type="button" data-filter-tag="special-issue">
+          Special Features/Issues
+        </button>
+
+        <button type="button" data-filter-tag="education">
+          Education
+        </button>
+
+        <button type="button" data-filter-tag="grad-program">
+          Grad Programs
+        </button>
+
+        <!-- These three will work once jobs/funding/competitions
+             are wired in as JSON sources with matching tags. -->
+        <button type="button" data-filter-tag="jobs">
+          Jobs
+        </button>
+
+        <button type="button" data-filter-tag="funding">
+          Funding
+        </button>
+
+        <button type="button" data-filter-tag="competitions">
+          Competitions
+        </button>
+      </nav>
+    </section>
+
+    <!-- OPTIONAL: Type + Time filters that calendar.js already supports -->
+    <section aria-labelledby="calendar-filters-heading">
+      <h2 id="calendar-filters-heading">Filter the calendar</h2>
+
+      <!-- Type filter (maps to event.type in calendar.js) -->
+      <h3>Filter by type</h3>
+      <nav aria-label="Type filter">
+        <button type="button" data-filter-type="all" class="is-active">
+          All types
+        </button>
+        <button type="button" data-filter-type="conference">
+          Conferences
+        </button>
+        <button type="button" data-filter-type="webinar">
+          Online events
+        </button>
+        <button type="button" data-filter-type="course">
+          Courses &amp; programs
+        </button>
+        <button type="button" data-filter-type="deadline-only">
+          Deadlines only
+        </button>
+      </nav>
+
+      <!-- Time window filter -->
+      <h3>Filter by time</h3>
+      <nav aria-label="Time filter">
+        <button type="button" data-filter-time="upcoming" class="is-active">
+          Upcoming
+        </button>
+        <button type="button" data-filter-time="this-month">
+          This month
+        </button>
+        <button type="button" data-filter-time="next-3-months">
+          Next 3 months
+        </button>
+        <button type="button" data-filter-time="past">
+          Past
+        </button>
+      </nav>
+    </section>
+
+    <!-- MAIN CALENDAR LIST CONTAINER -->
+    <section aria-labelledby="calendar-results-heading">
+      <h2 id="calendar-results-heading">Calendar items</h2>
+
+      <!--
+        calendar.js expects a container with id="calendar-list".
+        It injects a loading message and then a series of <article> cards.
+      -->
+      <div id="calendar-list">
+        <!-- Initial content is replaced by calendar.js once JSON is loaded -->
+        <p id="calendar-loading-message">
+          Loading items…
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      CVNet Community Calendar — auto-generated from community digests and submissions.
+    </p>
+  </footer>
+</body>
+</html>
