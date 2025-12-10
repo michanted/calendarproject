@@ -1,154 +1,185 @@
 // calendar.js
-// Minimal CVNet calendar: loads multiple JSON sources, normalizes them,
-// and renders cards. Only the category menu (data-filter-tag buttons) is used
-// as a filter; no type/time filters are currently active.
+// Dynamic CVNet-style calendar that loads multiple JSON data files
+// and renders them with a simple category (tag) filter.
+// Type/time filters are effectively disabled for now.
 
-// ======================= GLOBAL STATE =======================
+// ======================= CONFIG =======================
 
-let ALL_EVENTS = [];
-let currentTagFilter = null; // e.g. "conferences", "education", "online", "special-issue", etc.
-
-// JSON sources you currently have wired
 const SOURCE_DEFINITIONS = [
   {
     key: "conferences",
-    file: "./conferences.json"
+    file: "./conferences.json",
+    defaultType: "conference"
   },
   {
     key: "education",
-    file: "./education.json"
+    file: "./education.json",
+    defaultType: "course"
   },
   {
-    key: "grad-programs",
-    file: "./grad programs.json"
+    key: "gradPrograms",
+    file: "./grad programs.json",
+    defaultType: "course"
   },
   {
-    key: "online",
-    file: "./Online Seminars Clubs.json"
+    key: "onlineSeminars",
+    file: "./Online Seminars Clubs.json",
+    defaultType: "webinar"
   },
   {
-    key: "special-issues",
-    file: "./special feature issue.json"
+    key: "specialIssues",
+    file: "./special feature issue.json",
+    defaultType: "deadline-only"
   }
-  // Jobs / funding / competitions can be added later once
-  // their files are pure JSON (not JS) and normalized.
+  // Jobs / funding / competitions can be added later once their files
+  // are converted to plain JSON arrays and normalized.
 ];
 
-// ======================= NORMALIZATION =======================
+// All normalized events live here.
+let ALL_EVENTS = [];
 
-function normalizeItem(raw, sourceKey) {
-  const event = {
-    sourceKey,
-    title: raw.Name || raw.name || "Untitled",
-    type: "other",
-    tags: [],
-    location: raw.Location || "",
-    dateText: "",
-    deadline: "",
-    website: raw.Website || raw.Link || "",
-    notes: raw.Notes || ""
-  };
+// We keep type/time filter variables for compatibility, but they are
+// effectively disabled in the matching functions.
+let currentTypeFilter = "all";       // kept for future use
+let currentTimeFilter = null;        // null = no time filtering
+let currentTagFilter = null;         // e.g. "conferences", "education"
 
-  switch (sourceKey) {
-    case "conferences":
-      event.type = "conference";
-      event.tags.push("conferences");
-      event.dateText = raw.Date || "";
-      event.deadline = raw.SubmissionDeadlines || "";
-      break;
+// ======================= DATE HELPERS =======================
 
-    case "education":
-      event.type = "course";
-      event.tags.push("education");
-      event.dateText = raw.Dates || "";
-      event.deadline = raw.ApplicationDeadline || "";
-      break;
+function tryParseDate(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return null;
 
-    case "grad-programs":
-      event.type = "grad-program";
-      event.tags.push("grad-program");
-      // Use start date as date text if available
-      if (raw.StartDate) {
-        event.dateText = "Start date: " + raw.StartDate;
-      }
-      event.deadline = raw.Deadline || raw.Deadlines || "";
-      break;
+  const cleaned = dateStr
+    .replace(/\u2013|\u2014/g, "-")
+    .trim();
 
-    case "online":
-      event.type = "webinar";
-      event.tags.push("online");
-      event.dateText = raw.Schedule || raw.Date || "";
-      if (!event.location) {
-        event.location = "Online";
-      }
-      break;
+  const rangeParts = cleaned.split("-");
+  const firstPart = rangeParts[0].trim();
 
-    case "special-issues":
-      event.type = "deadline-only";
-      event.tags.push("special-issue");
-      event.dateText = raw.Deadline || "";
-      event.deadline = raw.Deadline || "";
-      break;
+  if (/TBD|TBA/i.test(firstPart)) return null;
 
-    default:
-      // Unknown source; leave defaults
-      break;
-  }
-
-  return event;
-}
-
-// Try to extract a real Date object from text like:
-// "December 29, 2025 – January 8, 2026" or "December 12, 2025" or "TBD".
-function parseDateFromText(text) {
-  if (!text || typeof text !== "string") return null;
-
-  // Take only the first segment before an en dash or hyphen.
-  let candidate = text.split("–")[0].split("-")[0].trim();
-
-  // Skip obvious non-dates like "TBD".
-  if (/TBD|TBA/i.test(candidate)) return null;
-
-  const parsed = new Date(candidate);
+  const parsed = new Date(firstPart);
   if (isNaN(parsed.getTime())) return null;
   return parsed;
 }
 
 function computePrimaryDate(event) {
-  // Prefer explicit deadline if present.
   if (event.deadline) {
-    const d = parseDateFromText(event.deadline);
+    const d = tryParseDate(event.deadline);
     if (d) return d;
   }
-  // Then try the date text.
-  if (event.dateText) {
-    const d = parseDateFromText(event.dateText);
+  if (event.startDate) {
+    const d = tryParseDate(event.startDate);
     if (d) return d;
   }
   return null;
 }
 
+// ======================= NORMALIZATION =======================
+
+function normalizeItem(raw, sourceKey, defaultType) {
+  let name = raw.Name || raw.title || raw.Title || "Untitled";
+  let location =
+    raw.Location ||
+    raw.location ||
+    raw.Host ||
+    raw.Institution ||
+    "";
+  let website =
+    raw.Website ||
+    raw.Link ||
+    raw.ApplicationLink ||
+    raw.url ||
+    "";
+  let frequency = raw.Frequency || raw.frequency || raw.Type || null;
+  let notes = raw.Notes || raw.Overview || raw.Scope || raw.ProjectSummary || "";
+
+  let startDate = null;
+  let deadline = null;
+  let tags = [];
+  let type = defaultType || "other";
+
+  switch (sourceKey) {
+    case "conferences":
+      startDate = raw.Date || null;
+      deadline = raw.SubmissionDeadlines || null;
+      tags.push("conferences");
+      break;
+
+    case "education":
+      startDate = raw.Dates || null;
+      deadline = raw.ApplicationDeadline || null;
+      tags.push("education");
+      break;
+
+    case "gradPrograms":
+      deadline = raw.Deadline || raw.Deadlines || null;
+      startDate = raw.StartDate || null;
+      tags.push("grad-program");
+      break;
+
+    case "onlineSeminars":
+      startDate = raw.Date || null;
+      tags.push("online");
+      break;
+
+    case "specialIssues":
+      deadline = raw.Deadline || null;
+      tags.push("special-issue");
+      break;
+
+    default:
+      break;
+  }
+
+  return {
+    name,
+    location,
+    website,
+    frequency,
+    notes,
+    startDate,
+    deadline,
+    tags,
+    type,
+    source: sourceKey
+  };
+}
+
 // ======================= FILTERING =======================
 
-// Tag filter: if no category chosen, we intentionally show nothing.
+// For now, we ignore type/time filters and only use tags.
+
+function eventMatchesType(event) {
+  // No type filtering at the moment.
+  return true;
+}
+
+function eventMatchesTime(event) {
+  // No time-window filtering at the moment.
+  return true;
+}
+
+// Tag filter: if no category is chosen, we intentionally show nothing.
 function eventMatchesTag(event) {
-  // If no category is chosen, don't show anything.
   if (!currentTagFilter) return false;
   if (!Array.isArray(event.tags)) return false;
   return event.tags.includes(currentTagFilter);
 }
 
-// Apply filters and re-render
+// Combine all filters.
 function applyFiltersAndRender() {
   if (!Array.isArray(ALL_EVENTS) || ALL_EVENTS.length === 0) {
     renderCalendar([]);
     return;
   }
 
-  // Only tag filtering for now.
-  let filtered = ALL_EVENTS.filter(ev => eventMatchesTag(ev));
+  let filtered = ALL_EVENTS.filter(ev =>
+    eventMatchesType(ev) &&
+    eventMatchesTime(ev) &&
+    eventMatchesTag(ev)
+  );
 
-  // Sort by primary date ascending (deadline or start date).
   filtered.sort((a, b) => {
     const da = computePrimaryDate(a) || new Date(0);
     const db = computePrimaryDate(b) || new Date(0);
@@ -160,6 +191,57 @@ function applyFiltersAndRender() {
 
 // ======================= RENDERING =======================
 
+function createEventCard(event) {
+  const card = document.createElement("article");
+
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = event.name || "Untitled";
+  card.appendChild(titleEl);
+
+  if (event.startDate) {
+    const p = document.createElement("p");
+    p.textContent = "Dates: " + event.startDate;
+    card.appendChild(p);
+  }
+
+  if (event.deadline) {
+    const p = document.createElement("p");
+    p.textContent = "Deadline: " + event.deadline;
+    card.appendChild(p);
+  }
+
+  if (event.location) {
+    const p = document.createElement("p");
+    p.textContent = "Location: " + event.location;
+    card.appendChild(p);
+  }
+
+  if (event.frequency) {
+    const p = document.createElement("p");
+    p.textContent = "Type: " + event.frequency;
+    card.appendChild(p);
+  }
+
+  if (event.website) {
+    const p = document.createElement("p");
+    const a = document.createElement("a");
+    a.href = event.website;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = "Website";
+    p.appendChild(a);
+    card.appendChild(p);
+  }
+
+  if (event.notes) {
+    const p = document.createElement("p");
+    p.textContent = event.notes;
+    card.appendChild(p);
+  }
+
+  return card;
+}
+
 function renderCalendar(events) {
   const listEl = document.getElementById("calendar-list");
   const loadingEl = document.getElementById("calendar-loading-message");
@@ -169,27 +251,25 @@ function renderCalendar(events) {
     return;
   }
 
-  // Remove loading message if it exists
   if (loadingEl) {
     loadingEl.remove();
   }
 
-  // Clear previous content
   listEl.innerHTML = "";
 
   if (!Array.isArray(events) || events.length === 0) {
     if (!currentTagFilter) {
       listEl.innerHTML = `
-      <p class="cv-calendar-empty">
-        No category chosen.
-      </p>
-    `;
+        <p class="cv-calendar-empty">
+          No category chosen.
+        </p>
+      `;
     } else {
       listEl.innerHTML = `
-      <p class="cv-calendar-empty">
-        No items match the current filters.
-      </p>
-    `;
+        <p class="cv-calendar-empty">
+          No items match the current filters.
+        </p>
+      `;
     }
     return;
   }
@@ -200,60 +280,8 @@ function renderCalendar(events) {
   });
 }
 
-function createEventCard(event) {
-  const article = document.createElement("article");
-
-  // Title
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = event.title || "Untitled";
-  article.appendChild(titleEl);
-
-  // Date text
-  if (event.dateText) {
-    const p = document.createElement("p");
-    p.textContent = "Dates: " + event.dateText;
-    article.appendChild(p);
-  }
-
-  // Deadline
-  if (event.deadline) {
-    const p = document.createElement("p");
-    p.textContent = "Deadline: " + event.deadline;
-    article.appendChild(p);
-  }
-
-  // Location
-  if (event.location) {
-    const p = document.createElement("p");
-    p.textContent = "Location: " + event.location;
-    article.appendChild(p);
-  }
-
-  // Website
-  if (event.website) {
-    const p = document.createElement("p");
-    const a = document.createElement("a");
-    a.href = event.website;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.textContent = "Website";
-    p.appendChild(a);
-    article.appendChild(p);
-  }
-
-  // Notes (short)
-  if (event.notes) {
-    const p = document.createElement("p");
-    p.textContent = event.notes;
-    article.appendChild(p);
-  }
-
-  return article;
-}
-
 // ======================= BUTTON WIRING =======================
 
-// Tag buttons (category menu)
 function setupFilterButtons() {
   const tagButtons = document.querySelectorAll("[data-filter-tag]");
 
@@ -262,7 +290,7 @@ function setupFilterButtons() {
       const raw = btn.dataset.filterTag;
       const tag = raw === "" ? null : raw;
 
-      // CLEAR button (data-filter-tag="") → always reset to "no category chosen"
+      // CLEAR: always go back to "no category chosen".
       if (tag === null) {
         currentTagFilter = null;
         tagButtons.forEach(b => b.classList.remove("is-active"));
@@ -270,7 +298,7 @@ function setupFilterButtons() {
         return;
       }
 
-      // Normal category buttons: toggle on/off
+      // Normal category: toggle on/off.
       if (currentTagFilter === tag) {
         currentTagFilter = null;
         tagButtons.forEach(b => b.classList.remove("is-active"));
@@ -295,24 +323,22 @@ async function loadAllEvents() {
       '<p id="calendar-loading-message" class="cv-calendar-loading">Loading items…</p>';
   }
 
-  for (const def of SOURCE_DEFINITIONS) {
+  for (const src of SOURCE_DEFINITIONS) {
     try {
-      const res = await fetch(def.file);
-      if (!res.ok) {
-        console.error("Failed to fetch", def.file, res.status);
+      const response = await fetch(src.file);
+      if (!response.ok) {
+        console.error("Failed to load " + src.file + ":", response.status);
         continue;
       }
-      const json = await res.json();
-      if (!Array.isArray(json)) {
-        console.error("JSON from", def.file, "is not an array");
-        continue;
-      }
-      json.forEach(raw => {
-        const ev = normalizeItem(raw, def.key);
-        allEvents.push(ev);
+      const rawArray = await response.json();
+      if (!Array.isArray(rawArray)) continue;
+
+      rawArray.forEach(rawItem => {
+        const event = normalizeItem(rawItem, src.key, src.defaultType);
+        allEvents.push(event);
       });
     } catch (err) {
-      console.error("Error loading", def.file, err);
+      console.error("Error loading " + src.file + ":", err);
     }
   }
 
