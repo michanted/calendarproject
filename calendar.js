@@ -1,3 +1,15 @@
+/* calendar.js
+   CVNet Community Calendar — Category-on-demand + Popular Conferences button
+
+   - GitHub Pages-safe (same folder as index.html + JSON files)
+   - Loads only the clicked category (cached)
+   - Popular Conferences is a BUTTON (data-filter-tag="conferences-popular"), not a subfilter panel
+   - Popular mode uses conferences.json but filters to curated set (ID match first, regex fallback)
+   - Status line:
+       Click -> "Loading all items in <Category>…"
+       Done  -> "Loaded <N> items in <Category>."
+*/
+
 (() => {
   const DATA_BASE = "./";
 
@@ -12,10 +24,7 @@
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
-  // The 16 "Popular Conferences" you provided.
-  // Matching is done by:
-  //  1) Exact id match (if present)
-  //  2) Title regex match (fallback)
+  // Your curated "Popular Conferences" list
   const POPULAR_CONFERENCES = [
     { key: "apa", label: "APA", id: "american-psychological-association-apa-2026", title: /\bamerican psychological association\b|\bapa\b/i },
     { key: "apcv", label: "APCV", id: "epc-apcv-2026", title: /\bapcv\b|\bepc\b/i },
@@ -35,20 +44,32 @@
     { key: "vss", label: "VSS", id: "vision-sciences-society-vss-2026", title: /\bvision sciences society\b|\bvss\b/i },
   ];
 
+  const POPULAR_CONF_ID_SET = new Set(
+    POPULAR_CONFERENCES.filter((p) => p.id).map((p) => p.id)
+  );
+
+  function isPopularConference(item) {
+    const id = String(item?._raw?.id ?? "");
+    const title = String(item?.title ?? "");
+
+    if (id && POPULAR_CONF_ID_SET.has(id)) return true;
+    return POPULAR_CONFERENCES.some((p) => p.title && p.title.test(title));
+  }
+
   const state = {
-    cache: new Map(), // tag -> { ok:true, items:[normalized...] } OR { ok:false, error:Error }
-    activeTag: null,
-
-    // conferences-only subfilter state
-    confMode: "all", // "all" | "popular"
-    confPopularIds: new Set(),
-    confPopularLinks: [],
-
     menu: null,
     list: null,
-    status: null,
     loadingMsg: null,
-    subfilters: null,
+    status: null, // optional
+
+    // UI tag is what button was clicked (e.g., "conferences-popular")
+    activeTag: null,
+
+    // Data tag is the underlying data source (e.g., "conferences")
+    activeDataTag: null,
+
+    // Cache is keyed by dataTag (so popular uses conferences cache)
+    cache: new Map(), // dataTag -> { ok:true, items:[...] } OR { ok:false, error }
   };
 
   if (document.readyState === "loading") {
@@ -60,132 +81,94 @@
   function init() {
     state.menu = document.getElementById("category-menu");
     state.list = document.getElementById("calendar-list");
-    state.status = document.getElementById("calendar-status"); // optional
     state.loadingMsg = document.getElementById("calendar-loading-message"); // optional
-    state.subfilters = document.getElementById("calendar-subfilters"); // optional
+    state.status = document.getElementById("calendar-status"); // optional
 
     if (!state.menu || !state.list) {
       console.error("calendar.js: Missing #category-menu or #calendar-list in HTML.");
       return;
     }
 
-    // If subfilters container doesn't exist, create it right above the list.
-    if (!state.subfilters) {
-      state.subfilters = document.createElement("div");
-      state.subfilters.id = "calendar-subfilters";
-      state.list.parentNode.insertBefore(state.subfilters, state.list);
-    }
-
-    // Initial blank state
     state.list.innerHTML = `<p>Select a category above to view items.</p>`;
-    state.subfilters.innerHTML = "";
+    setStatus("");
 
     state.menu.addEventListener("click", onMenuClick);
-    state.subfilters.addEventListener("click", onSubfilterClick);
   }
 
-  function onMenuClick(e) {
+  async function onMenuClick(e) {
     const btn = e.target.closest("button[data-filter-tag]");
     if (!btn) return;
 
-    const tag = (btn.dataset.filterTag ?? "").trim();
+    const clickedTag = (btn.dataset.filterTag || "").trim();
 
-    // CLEAR (empty tag) -> reset view
-    if (tag === "") {
+    // CLEAR
+    if (clickedTag === "") {
       state.activeTag = null;
-      state.confMode = "all";
-      state.subfilters.innerHTML = "";
+      state.activeDataTag = null;
       updateActiveButton("");
       state.list.innerHTML = `<p>Select a category above to view items.</p>`;
       setStatus("Cleared selection.");
       return;
     }
 
-    // Switch category
-    state.activeTag = tag;
-    updateActiveButton(tag);
+    const isPopularMode = clickedTag === "conferences-popular";
+    const dataTag = isPopularMode ? "conferences" : clickedTag;
 
-    const cat = getCategory(tag);
-    const label = cat?.label ?? tag;
+    state.activeTag = clickedTag;       // highlight correct button
+    state.activeDataTag = dataTag;      // load/render correct data
+    updateActiveButton(clickedTag);
 
-    // conferences subfilter resets when you re-enter conferences
-    if (tag !== "conferences") {
-      state.confMode = "all";
-      state.subfilters.innerHTML = "";
+    const cat = getCategory(dataTag);
+    const label = isPopularMode ? "Popular Conferences" : (cat?.label ?? dataTag);
+
+    // kill any placeholder loading message if present
+    if (state.loadingMsg) {
+      state.loadingMsg.remove();
+      state.loadingMsg = null;
     }
 
-    // If cached, render immediately; otherwise load.
-    if (state.cache.has(tag)) {
-      renderActiveCategory();
+    // Immediate feedback
+    setStatus(`Loading all items in ${label}…`);
+    state.list.innerHTML = `<p>Loading…</p>`;
+    setBusy(true);
+
+    try {
+      await ensureCategoryLoaded(dataTag);
+    } finally {
+      setBusy(false);
+    }
+
+    renderActiveView();
+  }
+
+  async function ensureCategoryLoaded(dataTag) {
+    if (state.cache.has(dataTag)) return;
+
+    const cat = getCategory(dataTag);
+    if (!cat) {
+      state.cache.set(dataTag, { ok: false, error: new Error(`Unknown category tag: ${dataTag}`) });
       return;
     }
 
-    // Load (category-on-demand)
-    setBusy(true);
-    setStatus(`Loading all items in ${label}…`);
-
-    loadCategory(tag)
-      .then(() => {
-        renderActiveCategory();
-      })
-      .catch((err) => {
-        // loadCategory already cached the error; just render
-        console.error(err);
-        renderActiveCategory();
-      })
-      .finally(() => {
-        if (state.loadingMsg) state.loadingMsg.remove();
-        setBusy(false);
-      });
-  }
-
-  function onSubfilterClick(e) {
-    const btn = e.target.closest("button[data-subfilter]");
-    if (!btn) return;
-
-    if (state.activeTag !== "conferences") return;
-
-    const mode = btn.dataset.subfilter;
-    if (mode !== "all" && mode !== "popular") return;
-
-    state.confMode = mode;
-    updateSubfilterButtons();
-    renderActiveCategory();
-  }
-
-  async function loadCategory(tag) {
-    const cat = getCategory(tag);
-    if (!cat) throw new Error(`Unknown category tag: ${tag}`);
-
     try {
-      const raw = await fetchJsonArray(cat.file);
-      const items = raw.map((obj) => normalizeItem(obj, cat));
-
-      state.cache.set(tag, { ok: true, items });
-
-      // Build conferences popular mapping once conferences load
-      if (tag === "conferences") {
-        buildPopularConferencesIndex(items);
-      }
+      const rawArray = await fetchCategoryArray(cat.file);
+      const normalized = rawArray.map((raw) => normalizeItem(raw, cat));
+      state.cache.set(dataTag, { ok: true, items: normalized });
     } catch (err) {
-      state.cache.set(tag, { ok: false, error: err });
-      throw err;
+      console.error(`[CVNet] Failed loading ${cat.file}:`, err);
+      state.cache.set(dataTag, { ok: false, error: err });
     }
   }
 
-  async function fetchJsonArray(filename) {
-    const url = DATA_BASE + filename;
+  async function fetchCategoryArray(filename) {
+    const url = new URL(DATA_BASE + filename, window.location.href);
     const res = await fetch(url, { cache: "no-store" });
 
-    if (!res.ok) {
-      throw new Error(`Failed to load ${filename} (HTTP ${res.status})`);
-    }
+    if (!res.ok) throw new Error(`Failed to load ${filename} (HTTP ${res.status})`);
 
-    // Read as text first, so we can give better errors
     const text = await res.text();
     const trimmed = text.trim();
 
-    // GitHub Pages 404 sometimes returns HTML
     if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
       throw new Error(`Expected JSON but got HTML from ${url} (wrong publish folder/path?)`);
     }
@@ -198,7 +181,7 @@
     }
 
     if (!Array.isArray(parsed)) {
-      throw new Error(`${filename} must be a JSON array (e.g. [] or [{...}])`);
+      throw new Error(`${filename} must be a JSON array (e.g., [] or [{...}])`);
     }
 
     for (let i = 0; i < parsed.length; i++) {
@@ -209,6 +192,47 @@
     }
 
     return parsed;
+  }
+
+  function renderActiveView() {
+    const uiTag = state.activeTag;
+    const dataTag = state.activeDataTag;
+
+    if (!uiTag || !dataTag) {
+      state.list.innerHTML = `<p>Select a category above to view items.</p>`;
+      return;
+    }
+
+    const cat = getCategory(dataTag);
+    const isPopularMode = uiTag === "conferences-popular";
+    const label = isPopularMode ? "Popular Conferences" : (cat?.label ?? dataTag);
+
+    const cached = state.cache.get(dataTag);
+    if (!cached) {
+      state.list.innerHTML = `<p>Nothing loaded yet for <strong>${escapeHtml(label)}</strong>.</p>`;
+      return;
+    }
+
+    if (!cached.ok) {
+      state.list.innerHTML = renderCategoryError(label, cached.error);
+      setStatus(`Could not load items in ${label}.`);
+      return;
+    }
+
+    let items = cached.items;
+
+    if (isPopularMode) {
+      items = items.filter(isPopularConference);
+    }
+
+    setStatus(`Loaded ${items.length} items in ${label}.`);
+
+    if (!items.length) {
+      state.list.innerHTML = `<p>No items found for <strong>${escapeHtml(label)}</strong> yet.</p>`;
+      return;
+    }
+
+    state.list.innerHTML = items.map(renderCard).join("\n");
   }
 
   function normalizeItem(raw, cat) {
@@ -265,133 +289,10 @@
     };
   }
 
-  function buildPopularConferencesIndex(items) {
-    state.confPopularIds = new Set();
-    state.confPopularLinks = [];
-
-    // For each popular entry, find the first matching item
-    for (const p of POPULAR_CONFERENCES) {
-      const match = items.find((it) => {
-        const rid = String(it._raw?.id ?? "");
-        const ttl = String(it.title ?? "");
-        if (p.id && rid === p.id) return true;
-        if (p.title && p.title.test(ttl)) return true;
-        return false;
-      });
-
-      if (match) {
-        const rid = String(match._raw?.id ?? "");
-        if (rid) state.confPopularIds.add(rid);
-
-        state.confPopularLinks.push({
-          label: p.label,
-          // Use JSON id if possible; otherwise fall back to a safe slug
-          href: "#" + (rid ? rid : ("popular-" + p.key)),
-        });
-      } else {
-        // Not fatal — you can add/fix the conference later
-        console.warn(`Popular conference not found in JSON yet: ${p.label}`);
-      }
-    }
-  }
-
-  function renderActiveCategory() {
-    const tag = state.activeTag;
-    if (!tag) {
-      state.list.innerHTML = `<p>Select a category above to view items.</p>`;
-      state.subfilters.innerHTML = "";
-      return;
-    }
-
-    const cat = getCategory(tag);
-    const label = cat?.label ?? tag;
-
-    const cached = state.cache.get(tag);
-    if (!cached) {
-      state.list.innerHTML = `<p>Nothing loaded yet for <strong>${escapeHtml(label)}</strong>.</p>`;
-      return;
-    }
-
-    if (!cached.ok) {
-      state.subfilters.innerHTML = "";
-      state.list.innerHTML = renderCategoryError(label, cached.error);
-      return;
-    }
-
-    let items = cached.items;
-
-    // Conferences-only subfilters UI + filtering
-    if (tag === "conferences") {
-      renderConferenceSubfilters();
-
-      if (state.confMode === "popular") {
-        items = items.filter((it) => {
-          const rid = String(it._raw?.id ?? "");
-          // Must have an id to be reliably filtered; if missing id, it can't be "popular"
-          return rid && state.confPopularIds.has(rid);
-        });
-      }
-    } else {
-      state.subfilters.innerHTML = "";
-    }
-
-    // Final status line (what you wanted)
-    setStatus(`Loaded ${items.length} items in ${label}.`);
-
-    if (!items.length) {
-      const suffix = (tag === "conferences" && state.confMode === "popular")
-        ? " (Popular Conferences)"
-        : "";
-      state.list.innerHTML = `<p>No items found for <strong>${escapeHtml(label)}${escapeHtml(suffix)}</strong> yet.</p>`;
-      return;
-    }
-
-    state.list.innerHTML = items.map(renderCard).join("\n");
-  }
-
-  function renderConferenceSubfilters() {
-    // Subfilter buttons
-    const allActive = state.confMode === "all";
-    const popActive = state.confMode === "popular";
-
-    const quickLinks =
-      state.confPopularLinks.length
-        ? `<div class="conference-quick-links" aria-label="Conference quick links">
-             ${state.confPopularLinks
-               .map((l) => `<a href="${escapeAttr(l.href)}">${escapeHtml(l.label)}</a>`)
-               .join(" ")}
-           </div>`
-        : "";
-
-    state.subfilters.innerHTML = `
-      <div class="conference-subfilters" role="group" aria-label="Conferences filters">
-        <button type="button" data-subfilter="all" aria-pressed="${allActive ? "true" : "false"}">
-          All Conferences
-        </button>
-        <button type="button" data-subfilter="popular" aria-pressed="${popActive ? "true" : "false"}">
-          Popular Conferences
-        </button>
-      </div>
-      ${quickLinks}
-    `;
-
-    updateSubfilterButtons();
-  }
-
-  function updateSubfilterButtons() {
-    const btns = state.subfilters.querySelectorAll("button[data-subfilter]");
-    btns.forEach((b) => {
-      const mode = b.dataset.subfilter;
-      const isActive = mode === state.confMode;
-      b.setAttribute("aria-pressed", isActive ? "true" : "false");
-      b.classList.toggle("active", isActive);
-    });
-  }
-
   function renderCard(item) {
     const lines = [];
 
-    // These are the core “conference-ish” fields you asked to always show when present
+    // Core fields you care about (show when present)
     if (item.frequency) lines.push(metaRow("Frequency", item.frequency));
     if (item.dates) lines.push(metaRow("Dates", item.dates));
     if (item.location) lines.push(metaRow("Location", item.location));
@@ -400,12 +301,12 @@
 
     const extra = buildExtraFields(item._raw);
 
-    // If your JSON objects have "id", we use it for anchor jump links (quick links).
+    // If your JSON has an id, use it so anchors can work later (optional)
     const rid = String(item._raw?.id ?? "");
     const articleId = rid ? ` id="${escapeAttr(rid)}"` : "";
 
     return `
-      <article class="calendar-card" data-category="${escapeHtml(item._tag)}"${articleId}>
+      <article class="calendar-card"${articleId} data-category="${escapeHtml(item._tag)}">
         <header class="calendar-card__header">
           <h3 class="calendar-card__title">${escapeHtml(item.title)}</h3>
           <p class="calendar-card__category">${escapeHtml(item._label)}</p>
@@ -424,14 +325,10 @@
 
           ${
             extra.length
-              ? `
-                <details class="calendar-card__more">
-                  <summary>More fields</summary>
-                  <dl class="calendar-card__extra">
-                    ${extra.join("")}
-                  </dl>
-                </details>
-              `
+              ? `<details class="calendar-card__more">
+                   <summary>More fields</summary>
+                   <dl class="calendar-card__extra">${extra.join("")}</dl>
+                 </details>`
               : ""
           }
         </div>
@@ -439,44 +336,65 @@
     `;
   }
 
+  function metaRow(label, value) {
+    return `<div><dt>${escapeHtml(label)}</dt><dd>${nl2br(escapeHtml(String(value)))}</dd></div>`;
+  }
+
   function buildExtraFields(raw) {
     if (!raw || typeof raw !== "object") return [];
 
-    // Hide stuff we already surfaced, plus obvious internal fields
-    const HIDE = new Set([
+    const hidden = new Set([
+      "id",
+      "_tag", "_label", "_raw",
+      // title-ish
       "title", "name", "program", "event",
+      // website-ish
       "website", "url", "link",
+      // location-ish
       "location", "city", "where",
+      // date-ish
       "dates", "date", "startDate", "start_date", "when", "schedule",
+      // frequency-ish
       "frequency", "cadence",
+      // deadline-ish
       "submissionDeadlines", "submissionDeadline", "applicationDeadline", "deadlines", "deadline", "datesDeadline",
+      // org-ish
       "organization", "organizer", "institution", "institutionProgram", "journal", "company", "department", "degreeType",
+      // description-ish
       "description", "details", "notes", "summary",
-      "_tag", "_label", "_raw"
     ]);
 
-    const rows = [];
-    for (const [k, v] of Object.entries(raw)) {
-      if (HIDE.has(k)) continue;
-      if (v === null || v === "" || typeof v === "undefined") continue;
+    const keys = Object.keys(raw).filter((k) => !hidden.has(k));
+    keys.sort((a, b) => a.localeCompare(b));
 
-      const label = prettifyKey(k);
-      const value = typeof v === "string" ? v : JSON.stringify(v, null, 2);
-
-      rows.push(metaRow(label, value));
+    const extras = [];
+    for (const k of keys) {
+      const v = raw[k];
+      if (v === null || v === undefined || v === "") continue;
+      const printed = typeof v === "object" ? JSON.stringify(v) : String(v);
+      extras.push(`<div><dt>${escapeHtml(k)}</dt><dd>${nl2br(escapeHtml(printed))}</dd></div>`);
     }
-    return rows;
+    return extras;
   }
 
-  function metaRow(label, value) {
-    return `<div><dt>${escapeHtml(label)}</dt><dd>${nl2br(escapeHtml(value))}</dd></div>`;
+  function renderCategoryError(label, err) {
+    return `
+      <p><strong>Could not load ${escapeHtml(label)}.</strong></p>
+      <p>${escapeHtml(err?.message ?? String(err))}</p>
+      <p>Fix tips:</p>
+      <ul>
+        <li>Check the JSON file for invalid values like <code>NaN</code>, trailing commas, or unquoted keys</li>
+        <li>Make sure the file is in the same published folder as <code>index.html</code></li>
+        <li>GitHub is case-sensitive: filenames must match exactly</li>
+      </ul>
+    `;
   }
 
-  function updateActiveButton(tag) {
+  function updateActiveButton(activeUiTag) {
     const buttons = state.menu.querySelectorAll("button[data-filter-tag]");
     buttons.forEach((b) => {
-      const bTag = (b.dataset.filterTag ?? "").trim();
-      const isActive = bTag === tag;
+      const bTag = (b.dataset.filterTag || "").trim();
+      const isActive = bTag === activeUiTag;
       b.classList.toggle("active", isActive);
       b.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
@@ -490,37 +408,17 @@
     if (state.status) state.status.textContent = msg;
   }
 
-  function renderCategoryError(label, err) {
-    return `
-      <p><strong>Could not load ${escapeHtml(label)}.</strong></p>
-      <p>${escapeHtml(err?.message ?? String(err))}</p>
-      <p>Common causes:</p>
-      <ul>
-        <li>A JSON file has invalid JSON (e.g., NaN or trailing commas)</li>
-        <li>A filename doesn’t match exactly (case-sensitive on GitHub)</li>
-        <li>Wrong GitHub Pages publish folder/path (HTML returned instead of JSON)</li>
-      </ul>
-    `;
-  }
-
   function getCategory(tag) {
     return CATEGORIES.find((c) => c.tag === tag) || null;
   }
 
   function coalesce(...vals) {
     for (const v of vals) {
-      if (v === null || typeof v === "undefined") continue;
+      if (v === null || v === undefined) continue;
       const s = String(v).trim();
-      if (s !== "") return s;
+      if (s !== "") return v;
     }
     return "";
-  }
-
-  function prettifyKey(k) {
-    return String(k)
-      .replace(/[_-]+/g, " ")
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/\b\w/g, (m) => m.toUpperCase());
   }
 
   function escapeHtml(s) {
@@ -533,7 +431,6 @@
   }
 
   function escapeAttr(s) {
-    // safe-ish for attributes and hrefs
     return String(s).replaceAll('"', "%22");
   }
 
