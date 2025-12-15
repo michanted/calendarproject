@@ -1,16 +1,13 @@
 /* calendar.js
    CVNet Community Calendar
-   - Loads JSON files from the SAME directory as calendar.html
+   - Loads JSON files from the SAME directory as index.html
    - Shows NOTHING until a category button is clicked
    - Filters by clicking buttons with data-filter-tag in #category-menu
 
-   Run via a local server or GitHub Pages (not file://).
+   Works on GitHub Pages + local server (not file://).
 */
 
 (() => {
-  // Since everything is in the same folder:
-  const DATA_BASE = "./";
-
   // Must match your HTML button data-filter-tag values
   const CATEGORIES = [
     { tag: "conferences", label: "Conferences", file: "conferences.json" },
@@ -19,86 +16,93 @@
     { tag: "education", label: "Education", file: "education.json" },
     { tag: "grad-program", label: "Grad Programs", file: "grad_programs.json" },
     { tag: "jobs", label: "Jobs", file: "jobs.json" },
-    { tag: "funding", label: "Funding", file: "funding.json" }, // exists as []
+    { tag: "funding", label: "Funding", file: "funding.json" }, // may be []
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
-  const els = {
-    menu: document.getElementById("category-menu"),
-    list: document.getElementById("calendar-list"),
-    loading: document.getElementById("calendar-loading-message"),
-    status: document.getElementById("calendar-status"), // optional; if missing, that's fine
+  const state = {
+    allItems: [],
+    loaded: false,
+    activeTag: null,
   };
 
-  if (!els.menu || !els.list) {
-    console.error("Missing #category-menu or #calendar-list in HTML.");
-    return;
+  // Boot safely whether or not DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
-
-  let allItems = [];
-  let loaded = false;
-  let activeTag = null; // null => nothing shown yet
-
-  document.addEventListener("DOMContentLoaded", init);
 
   function init() {
-    // Initial state: show nothing until clicked
-    els.list.innerHTML = `
-      <p>Select a category above to view items.</p>
-    `;
+    const menu = document.getElementById("category-menu");
+    const list = document.getElementById("calendar-list");
+    const loadingMsg = document.getElementById("calendar-loading-message");
+    const status = document.getElementById("calendar-status"); // optional
 
-    // One listener handles all category buttons
-    els.menu.addEventListener("click", onMenuClick);
-  }
-
-  async function onMenuClick(e) {
-    const btn = e.target.closest("button[data-filter-tag]");
-    if (!btn) return;
-
-    const tag = (btn.dataset.filterTag ?? "").trim();
-
-    // Your CLEAR button has empty tag -> go back to "nothing shown"
-    if (tag === "") {
-      activeTag = null;
-      updateActiveButton(""); // highlight CLEAR
-      els.list.innerHTML = `<p>Select a category above to view items.</p>`;
-      setStatus("Cleared selection.");
+    if (!menu || !list) {
+      console.error("calendar.js: Missing #category-menu or #calendar-list in HTML.");
       return;
     }
 
-    // Load data once on first real click
-    if (!loaded) {
-      setBusy(true);
-      setStatus("Loading calendar items…");
+    // Initial state
+    list.innerHTML = `<p>Select a category above to view items.</p>`;
+    list.setAttribute("aria-busy", "false");
 
-      try {
-        allItems = await loadAllCategories();
-        loaded = true;
-        setStatus(`Loaded ${allItems.length} items.`);
-      } catch (err) {
-        console.error(err);
-        showError(err);
-        setBusy(false);
+    // Delegate clicks from the menu
+    menu.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-filter-tag]");
+      if (!btn) return;
+
+      const tag = (btn.dataset.filterTag ?? "").trim();
+      console.log("[CVNet] Click:", tag || "(clear)");
+
+      // Clear selection (empty tag)
+      if (tag === "") {
+        state.activeTag = null;
+        updateActiveButton(menu, "");
+        list.innerHTML = `<p>Select a category above to view items.</p>`;
+        setStatus(status, "Cleared selection.");
         return;
-      } finally {
-        if (els.loading) els.loading.remove();
-        setBusy(false);
       }
-    }
 
-    activeTag = tag;
-    updateActiveButton(tag);
-    render();
+      // Load once on first real click
+      if (!state.loaded) {
+        setBusy(list, true);
+        setStatus(status, "Loading calendar items…");
+
+        try {
+          state.allItems = await loadAllCategories();
+          state.loaded = true;
+          setStatus(status, `Loaded ${state.allItems.length} items.`);
+          console.log("[CVNet] Loaded items:", state.allItems.length);
+        } catch (err) {
+          console.error("[CVNet] Load error:", err);
+          showError(list, err);
+          setBusy(list, false);
+          return;
+        } finally {
+          if (loadingMsg) loadingMsg.remove();
+          setBusy(list, false);
+        }
+      }
+
+      state.activeTag = tag;
+      updateActiveButton(menu, tag);
+      render(list, status);
+    });
   }
 
   async function loadAllCategories() {
     const results = await Promise.all(
       CATEGORIES.map(async (cat) => {
-        const url = DATA_BASE + cat.file;
+        // This makes fetch paths correct on GitHub Pages project sites too
+        const url = new URL(cat.file, window.location.href);
+
+        console.log("[CVNet] Fetch:", url.toString());
         const res = await fetch(url, { cache: "no-store" });
 
         if (!res.ok) {
-          throw new Error(`Failed to load ${cat.file} (HTTP ${res.status})`);
+          throw new Error(`Failed to load ${cat.file} (HTTP ${res.status}) at ${url}`);
         }
 
         const data = await res.json();
@@ -117,34 +121,30 @@
     return results.flat();
   }
 
-  function render() {
-    if (!activeTag) {
-      els.list.innerHTML = `<p>Select a category above to view items.</p>`;
+  function render(list, statusEl) {
+    if (!state.activeTag) {
+      list.innerHTML = `<p>Select a category above to view items.</p>`;
       return;
     }
 
-    const items = allItems.filter((x) => x._tag === activeTag);
+    const items = state.allItems.filter((x) => x._tag === state.activeTag);
+    const label = CATEGORIES.find((c) => c.tag === state.activeTag)?.label ?? state.activeTag;
 
     if (items.length === 0) {
-      const label = CATEGORIES.find(c => c.tag === activeTag)?.label ?? activeTag;
-      els.list.innerHTML = `<p>No items found for <strong>${escapeHtml(label)}</strong> yet.</p>`;
-      setStatus(`No items in ${label}.`);
+      list.innerHTML = `<p>No items found for <strong>${escapeHtml(label)}</strong> yet.</p>`;
+      setStatus(statusEl, `No items in ${label}.`);
       return;
     }
 
-    els.list.innerHTML = items.map(renderCard).join("\n");
-
-    const label = CATEGORIES.find(c => c.tag === activeTag)?.label ?? activeTag;
-    setStatus(`Showing ${items.length} items in ${label}.`);
+    list.innerHTML = items.map(renderCard).join("\n");
+    setStatus(statusEl, `Showing ${items.length} items in ${label}.`);
   }
 
   function renderCard(item) {
-    // “Best-effort” normalization across your different JSON schemas
     const title = item.title ?? "(Untitled)";
     const website = item.website ?? "";
     const location = item.location ?? "";
 
-    // Dates/deadlines vary by file
     const dates =
       item.dates ??
       item.datesDeadline ??
@@ -155,7 +155,6 @@
       item.startDate ??
       "";
 
-    // Organization/institution/etc.
     const org =
       item.organization ??
       item.institution ??
@@ -165,12 +164,7 @@
       item.degreeType ??
       "";
 
-    // Optional description-like fields
-    const desc =
-      item.description ??
-      item.notes ??
-      item.details ??
-      "";
+    const desc = item.description ?? item.notes ?? item.details ?? "";
 
     return `
       <article class="calendar-card" data-category="${escapeHtml(item._tag)}">
@@ -189,14 +183,18 @@
 
           ${desc ? `<p class="calendar-card__desc">${nl2br(escapeHtml(desc))}</p>` : ""}
 
-          ${website ? `<p><a class="calendar-card__link" href="${escapeAttr(website)}" target="_blank" rel="noopener">Website</a></p>` : ""}
+          ${
+            website
+              ? `<p><a class="calendar-card__link" href="${escapeAttr(website)}" target="_blank" rel="noopener">Website</a></p>`
+              : ""
+          }
         </div>
       </article>
     `;
   }
 
-  function updateActiveButton(tag) {
-    const buttons = els.menu.querySelectorAll("button[data-filter-tag]");
+  function updateActiveButton(menuEl, tag) {
+    const buttons = menuEl.querySelectorAll("button[data-filter-tag]");
     buttons.forEach((b) => {
       const bTag = (b.dataset.filterTag ?? "").trim();
       const isActive = bTag === tag;
@@ -206,16 +204,16 @@
     });
   }
 
-  function setBusy(isBusy) {
-    els.list.setAttribute("aria-busy", isBusy ? "true" : "false");
+  function setBusy(listEl, isBusy) {
+    listEl.setAttribute("aria-busy", isBusy ? "true" : "false");
   }
 
-  function setStatus(msg) {
-    if (els.status) els.status.textContent = msg;
+  function setStatus(statusEl, msg) {
+    if (statusEl) statusEl.textContent = msg;
   }
 
-  function showError(err) {
-    els.list.innerHTML = `
+  function showError(listEl, err) {
+    listEl.innerHTML = `
       <p><strong>Could not load calendar data.</strong></p>
       <p>${escapeHtml(err?.message ?? String(err))}</p>
       <p>Common causes:</p>
@@ -223,6 +221,7 @@
         <li>Opening via <code>file://</code> instead of GitHub Pages / local server</li>
         <li>A JSON file has invalid JSON</li>
         <li>A filename doesn’t match exactly (case-sensitive on GitHub)</li>
+        <li>Your GitHub Pages publish folder doesn’t contain the JSON files</li>
       </ul>
     `;
   }
