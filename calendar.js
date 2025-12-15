@@ -26,25 +26,32 @@
   ];
 
   // Your curated "Popular Conferences" list
-  const POPULAR_CONFERENCES = [
-    { key: "apa", label: "APA", id: "american-psychological-association-apa-2026", title: /\bamerican psychological association\b/i },
-    { key: "apcv", label: "APCV", id: "epc-apcv-2026", title: /\bapcv\b|\bepc\b/i },
-    { key: "aps", label: "APS", id: null, title: /\bassociation for psychological science\b/i },
-    { key: "arvo", label: "ARVO", id: null, title: /\bassociation for research in vision and ophthalmology\b/i },
-    // AVA: intentionally NOT matching generic "\bava\b"
-    { key: "ava", label: "AVA", id: "applied-vision-association-ava-2026", title: /\bapplied vision association\b|\btheava\.net\b/i },
-    { key: "bavrd", label: "BAVRD", id: null, title: /\bbay area vision research day\b|\bbavrd\b/i },
-    { key: "ecvp", label: "ECVP", id: "european-conference-on-visual-perception-ecvp-2026", title: /\beuropean conference on visual perception\b|\becvp\b/i },
-    { key: "gruppo-del-colore", label: "Gruppo del Colore", id: "gruppo-del-colore-annual-meeting-2026", title: /\bgruppo del colore\b/i },
-    { key: "hvei", label: "HVEI", id: "human-vision-and-electronic-imaging-hvei-2026", title: /\bhuman vision and electronic imaging\b|\bhvei\b/i },
-    { key: "icvs", label: "ICVS", id: "international-colour-vision-society-icvs-2026", title: /\binternational (colour|color) vision society\b|\bicvs\b/i },
-    { key: "modvis", label: "MODVIS", id: null, title: /\bmodvis\b|\bmodels in vision science\b/i },
-    { key: "optica-fall-vision", label: "Optica Fall Vision", id: "optica-fall-vision-meeting-2026", title: /\boptica\b.*\bfall\b.*\bvision\b/i },
-    { key: "psychonomics", label: "Psychonomics", id: "psychonomic-society-annual-meeting-2026", title: /\bpsychonomic\b|\bpsychonomics\b/i },
-    { key: "sfn", label: "SfN", id: "society-for-neuroscience-sfn-2026", title: /\bsociety for neuroscience\b|\bsfn\b/i },
-    { key: "vsac", label: "VSAC", id: "visual-science-art-conference-vsac-2026", title: /\bvisual science art conference\b|\bvsac\b/i },
-    { key: "vss", label: "VSS", id: "vision-sciences-society-vss-2026", title: /\bvision sciences society\b|\bvss\b/i },
-  ];
+const POPULAR_CONFERENCES = [
+  { key: "apa", label: "APA", id: "american-psychological-association-apa-2026", title: /\bamerican psychological association\b/i },
+  { key: "apcv", label: "APCV", id: "epc-apcv-2026", title: /\bapcv\b|\bepc\b/i },
+
+  // FIXED: add real IDs so they match (you were missing these 4)
+  { key: "aps", label: "APS", id: "association-for-psychological-science-aps-2026", title: /\bassociation for psychological science\b|\baps\b/i },
+  { key: "arvo", label: "ARVO", id: "association-for-research-in-vision-and-ophthalmology-arvo-2026", title: /\bassociation for research in vision and ophthalmology\b|\barvo\b/i },
+
+  // AVA: intentionally NOT matching generic "\bava\b" (prevents the Xmas one)
+  { key: "ava", label: "AVA", id: "applied-vision-association-ava-2026", title: /\bapplied vision association\b|\btheava\.net\b/i },
+
+  { key: "bavrd", label: "BAVRD", id: "bay-area-vision-research-day-bavrd-2026", title: /\bbay area vision research day\b|\bbavrd\b/i },
+  { key: "ecvp", label: "ECVP", id: "european-conference-on-visual-perception-ecvp-2026", title: /\beuropean conference on visual perception\b|\becvp\b/i },
+  { key: "gruppo-del-colore", label: "Gruppo del Colore", id: "gruppo-del-colore-annual-meeting-2026", title: /\bgruppo del colore\b/i },
+  { key: "hvei", label: "HVEI", id: "human-vision-and-electronic-imaging-hvei-2026", title: /\bhuman vision and electronic imaging\b|\bhvei\b/i },
+  { key: "icvs", label: "ICVS", id: "international-colour-vision-society-icvs-2026", title: /\binternational (colour|color) vision society\b|\bicvs\b/i },
+
+  { key: "modvis", label: "MODVIS", id: "models-in-vision-science-modvis", title: /\bmodvis\b|\bmodels in vision science\b/i },
+
+  { key: "optica-fall-vision", label: "Optica Fall Vision", id: "optica-fall-vision-meeting-2026", title: /\boptica\b.*\bfall\b.*\bvision\b/i },
+  { key: "psychonomics", label: "Psychonomics", id: "psychonomic-society-annual-meeting-2026", title: /\bpsychonomic\b|\bpsychonomics\b/i },
+  { key: "sfn", label: "SfN", id: "society-for-neuroscience-sfn-2026", title: /\bsociety for neuroscience\b|\bsfn\b/i },
+  { key: "vsac", label: "VSAC", id: "visual-science-art-conference-vsac-2026", title: /\bvisual science art conference\b|\bvsac\b/i },
+  { key: "vss", label: "VSS", id: "vision-sciences-society-vss-2026", title: /\bvision sciences society\b|\bvss\b/i },
+];
+
 
   const POPULAR_ID_SET = new Set(POPULAR_CONFERENCES.filter(p => p.id).map(p => p.id));
 
@@ -465,3 +472,4 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
