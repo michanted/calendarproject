@@ -30,7 +30,7 @@
     { key: "apcv", label: "APCV", id: "epc-apcv-2026", title: /\bapcv\b|\bepc\b/i },
     { key: "aps", label: "APS", id: null, title: /\bassociation for psychological science\b|\baps\b/i },
     { key: "arvo", label: "ARVO", id: null, title: /\bassociation for research in vision and ophthalmology\b|\barvo\b/i },
-    { key: "ava", label: "AVA", id: "applied-vision-association-ava-2026", title: /\bapplied vision association\b|\bava\b/i },
+    { key: "ava", label: "AVA", id: "applied-vision-association-ava-2026", title: /\bapplied vision association\b|\btheava\.net\b/i},
     { key: "bavrd", label: "BAVRD", id: null, title: /\bbay area vision research day\b|\bbavrd\b/i },
     { key: "ecvp", label: "ECVP", id: "european-conference-on-visual-perception-ecvp-2026", title: /\beuropean conference on visual perception\b|\becvp\b/i },
     { key: "gruppo-del-colore", label: "Gruppo del Colore", id: "gruppo-del-colore-annual-meeting-2026", title: /\bgruppo del colore\b/i },
@@ -49,12 +49,17 @@
   );
 
   function isPopularConference(item) {
-    const id = String(item?._raw?.id ?? "");
-    const title = String(item?.title ?? "");
+  const id = String(item?._raw?.id ?? "");
+  const title = String(item?.title ?? "");
 
-    if (id && POPULAR_CONF_ID_SET.has(id)) return true;
-    return POPULAR_CONFERENCES.some((p) => p.title && p.title.test(title));
-  }
+  // 1) If the item has an id, ONLY match against curated IDs
+  if (id) return POPULAR_CONF_ID_SET.has(id);
+
+  // 2) If the item has no id, use regex fallback, BUT only for popular entries that also have no id
+  return POPULAR_CONFERENCES
+    .filter(p => !p.id && p.title)
+    .some(p => p.title.test(title));
+}
 
   const state = {
     menu: null,
@@ -438,3 +443,4 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
