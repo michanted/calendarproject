@@ -131,9 +131,9 @@ const POPULAR_CONFERENCES = [
     updateActiveButton(tag);
 
     // show/hide conferences subfilters
-    if (tag === "conferences") {
-      renderConferenceSubfilters();
-    } else {
+   if (tag === "conferences") {
+  renderConferenceSubfilters(cached.items);
+} else {
       state.confMode = "all";
       state.subfilters.innerHTML = "";
     }
@@ -173,15 +173,49 @@ const POPULAR_CONFERENCES = [
     renderActiveCategory();
   }
 
-  function renderConferenceSubfilters() {
-    state.subfilters.innerHTML = `
-      <div style="margin:8px 0;">
-        <button type="button" data-conf-filter="all" aria-pressed="true">All Conferences</button>
-        <button type="button" data-conf-filter="popular" aria-pressed="false">Popular Conferences</button>
-      </div>
-    `;
-    updateConferenceSubfilterButtons();
-  }
+function buildPopularQuickLinks(items) {
+  // Only show links for popular entries that actually exist in the loaded items
+  const existingIds = new Set(items.map(it => String(it?._raw?.id || "")).filter(Boolean));
+
+  const links = POPULAR_CONFERENCES
+    .filter(p => p.id && existingIds.has(p.id))
+    .map(p => `<a href="#${escapeAttr(p.id)}">${escapeHtml(p.label)}</a>`)
+    .join(" ");
+
+  if (!links) return "";
+
+  return `
+    <nav class="cv-conference-links" aria-label="Popular conference quick links" style="margin:8px 0;">
+      ${links}
+    </nav>
+  `;
+}
+
+   
+  function renderConferenceSubfilters(items) {
+  const allActive = state.confMode === "all";
+  const popActive = state.confMode === "popular";
+
+  const quickLinks = (state.confMode === "popular")
+    ? buildPopularQuickLinks(items)
+    : "";
+
+  state.subfilters.innerHTML = `
+    <div style="margin:8px 0;">
+      <button type="button" data-conf-filter="all" aria-pressed="${allActive ? "true" : "false"}">
+        All Conferences
+      </button>
+      <button type="button" data-conf-filter="popular" aria-pressed="${popActive ? "true" : "false"}">
+        Popular Conferences
+      </button>
+    </div>
+
+    ${quickLinks}
+  `;
+
+  updateConferenceSubfilterButtons();
+}
+
 
   function updateConferenceSubfilterButtons() {
     const allBtn = state.subfilters.querySelector('button[data-conf-filter="all"]');
@@ -472,4 +506,5 @@ const POPULAR_CONFERENCES = [
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
 
