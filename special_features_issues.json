@@ -1,0 +1,101 @@
+[
+  {
+    "id": "josa-a-josa-b-spatiotemporal-structured-light-josa-a-josa-b",
+    "journal": "JOSA A · JOSA B",
+    "title": "JOSA A / JOSA B — Spatiotemporal Structured Light",
+    "type": "Feature Issue",
+    "status": "Open",
+    "deadline": "December 15, 2025",
+    "website": "https://opg.optica.org/josaa/feature_issues.cfm"
+  },
+  {
+    "id": "journal-of-vision-interface-between-vision-and-language-journal-of-vision",
+    "journal": "Journal of Vision",
+    "title": "Journal of Vision — Interface Between Vision and Language",
+    "type": "Special Issue",
+    "status": "Open",
+    "deadline": "December 31, 2025",
+    "website": "https://jov.arvojournals.org/ss/visionlanguageinterface.aspx"
+  },
+  {
+    "id": "josa-a-josa-b-optics-in-south-asia-josa-a-josa-b",
+    "journal": "JOSA A · JOSA B",
+    "title": "JOSA A / JOSA B — Optics in South Asia",
+    "type": "Feature Issue",
+    "status": "Open",
+    "deadline": "January 15, 2026",
+    "website": "https://opg.optica.org/josaa/feature_issues.cfm"
+  },
+  {
+    "id": "color-research-and-application-facial-appearance-measurement-and-perception-color-research-application",
+    "journal": "Color Research & Application",
+    "title": "Color Research & Application — Facial Appearance Measurement & Perception",
+    "type": "Collection",
+    "status": "Ongoing",
+    "deadline": "Ongoing",
+    "website": "https://onlinelibrary.wiley.com/doi/toc/10.1002/%28ISSN%291520-6378.facial-appearance"
+  },
+  {
+    "id": "visual-cognition-special-issue-the-control-of-visual-attention-visual-cognition",
+    "journal": "Visual Cognition",
+    "title": "Visual Cognition — Special Issue: The Control of Visual Attention",
+    "type": "Special Issue",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://think.taylorandfrancis.com/special_issues/the-control-of-visual-attention-in-honor-of-charles-folk-roger-remington/"
+  },
+  {
+    "id": "rhythmic-cognition-cross-journal-collection-communications-psychology-nature-communications-scientific-reports",
+    "journal": "Communications Psychology · Nature Communications · Scientific Reports",
+    "title": "Rhythmic Cognition — Cross-Journal Collection",
+    "type": "Collection",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://www.nature.com/collections/jhcjbjgfgj/about-this-collection"
+  },
+  {
+    "id": "bmc-biology-integrative-and-translational-serial-dependence-bmc-biology",
+    "journal": "BMC Biology",
+    "title": "BMC Biology — Integrative and Translational Serial Dependence",
+    "type": "Collection",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://www.biomedcentral.com/collections/itsd"
+  },
+  {
+    "id": "optics-express-3d-image-acquisition-and-display-2025-optics-express",
+    "journal": "Optics Express",
+    "title": "Optics Express — 3D Image Acquisition and Display (2025)",
+    "type": "Feature Issue",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://opg.optica.org/content/feature/announcement/item/oe-3d-image-acquisition-and-display-2025"
+  },
+  {
+    "id": "cosi-2025-computational-optical-sensing-and-imaging-applied-optics-biomedical-optics-express-optics-express",
+    "journal": "Applied Optics · Biomedical Optics Express · Optics Express",
+    "title": "COSI 2025 — Computational Optical Sensing and Imaging",
+    "type": "Feature Issue",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://opg.optica.org/content/feature/announcement/item/oe-cosi2025"
+  },
+  {
+    "id": "iovs-nystagmus-special-issue-iovs",
+    "journal": "IOVS",
+    "title": "IOVS — Nystagmus Special Issue",
+    "type": "Special Issue",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://iovs.arvojournals.org/special-issues/nystagmus"
+  },
+  {
+    "id": "vision-research-computational-and-mathematical-models-in-vision-modvis-special-issue-vision-research",
+    "journal": "Vision Research",
+    "title": "Vision Research — Computational and Mathematical Models in Vision (MODVIS Special Issue)",
+    "type": "Special Issue",
+    "status": "Closed",
+    "deadline": "-",
+    "website": "https://www.sciencedirect.com/journal/vision-research/about/call-for-papers"
+  }
+]

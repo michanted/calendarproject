@@ -1,0 +1,268 @@
+/* calendar.css
+   Clean, readable, low-noise styling for CVNet Calendar
+*/
+
+:root {
+  /* Core neutrals */
+  --bg: #ffffff;
+  --text: #111827;     /* near-black */
+  --muted: #6b7280;    /* gray */
+  --border: #e5e7eb;   /* light gray */
+  --card: #ffffff;
+
+  /* Accent (we can swap this later “per refresh”) */
+  --accent: #2563eb;   /* blue */
+  --accent-soft: rgba(37, 99, 235, 0.10);
+
+  /* Layout */
+  --max-width: 980px;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.06);
+  --shadow-soft: 0 1px 2px rgba(0,0,0,0.05);
+
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 18px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.45;
+}
+
+/* Keep content from going full “wide-screen spreadsheet” */
+header, main, footer {
+  width: min(var(--max-width), calc(100% - 2 * var(--space-5)));
+  margin: 0 auto;
+}
+
+/* Header */
+header {
+  padding: var(--space-6) 0 var(--space-4);
+}
+
+header h1 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+header nav {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+header nav a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+header nav a:hover {
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+
+header p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+header p a {
+  color: var(--accent);
+  text-decoration: none;
+}
+header p a:hover {
+  text-decoration: underline;
+}
+
+/* Main layout spacing */
+main {
+  padding: 0 0 var(--space-6);
+}
+
+/* Category section */
+section {
+  margin: 0 0 var(--space-6);
+}
+
+section h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.2rem;
+}
+
+section > p {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+}
+
+/* Category menu buttons */
+#category-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafafa;
+}
+
+#category-menu button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+#category-menu button:hover {
+  transform: translateY(-1px);
+  border-color: #d1d5db;
+}
+
+#category-menu button:active {
+  transform: translateY(0px);
+}
+
+/* Active button (JS toggles .active) */
+#category-menu button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Accessible focus */
+#category-menu button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+/* Results container */
+#calendar-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+/* Card styling used by calendar.js */
+.calendar-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-4);
+}
+
+.calendar-card__header {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.calendar-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.calendar-card__category {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fafafa;
+  white-space: nowrap;
+}
+
+.calendar-card__org {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+}
+
+/* Definition list meta layout */
+.calendar-card__meta {
+  margin: 0 0 var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.calendar-card__meta > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: var(--space-2);
+}
+
+.calendar-card__meta dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.calendar-card__meta dd {
+  margin: 0;
+}
+
+/* Optional description */
+.calendar-card__desc {
+  margin: var(--space-2) 0 0;
+  color: var(--text);
+}
+
+/* Link */
+.calendar-card__link {
+  display: inline-block;
+  margin-top: var(--space-2);
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.calendar-card__link:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+footer {
+  padding: var(--space-5) 0 var(--space-6);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  header h1 { font-size: 1.55rem; }
+
+  .calendar-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .calendar-card__meta > div {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-card__category {
+    margin-top: 4px;
+  }
+}

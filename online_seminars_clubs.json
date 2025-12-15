@@ -1,0 +1,29 @@
+[
+  {
+    "id": "intermural-colour-club-journal-club",
+    "title": "Intermural Colour Club",
+    "type": "Journal Club",
+    "frequency": "Ongoing",
+    "schedule": "",
+    "location": "",
+    "website": "https://docs.google.com/document/d/1LH_FEBCwvE0z8OuWMLs7e_OVKg1VB2vwleyXzHHug44/edit"
+  },
+  {
+    "id": "optica-color-technical-group-webinars-webinar-series",
+    "title": "Optica Color Technical Group Webinars",
+    "type": "Webinar Series",
+    "frequency": "Periodic",
+    "schedule": "",
+    "location": "",
+    "website": "https://opg.optica.org/ao/colorgroup.cfm"
+  },
+  {
+    "id": "current-topics-in-sleep-and-circadian-health-tscn-seminar-series",
+    "title": "Current Topics in Sleep & Circadian Health (TSCN)",
+    "type": "Seminar Series",
+    "frequency": "Seasonal",
+    "schedule": "",
+    "location": "",
+    "website": "https://www.tscnlab.org/"
+  }
+]
