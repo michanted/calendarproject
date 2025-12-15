@@ -69,7 +69,15 @@
     }
 
     state.activeTag = tag;
-    updateActiveButton(tag);
+updateActiveButton(tag);
+
+// Instant feedback (no lag feel)
+const cat = CATEGORIES.find((c) => c.tag === tag);
+setStatus(cat ? `Loading ${cat.label}…` : "Loading…");
+
+// Optional: immediately show a small loading placeholder in the list
+state.list.innerHTML = `<p>Loading…</p>`;
+
 
     // Remove any placeholder loading message if present
     if (state.loadingMsg) {
@@ -408,3 +416,4 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
