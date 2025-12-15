@@ -103,12 +103,16 @@
   }
 
   function onSubfilterClick(e) {
-    const btn = e.target.closest("button[data-conf-filter]");
-    if (!btn) return;
+  const btn = e.target.closest("button[data-conf-filter]");
+  if (!btn) return;
 
-    state.confMode = btn.dataset.confFilter;
-    render();
-  }
+  // Force conferences mode only
+  if (state.activeTag !== "conferences") return;
+
+  state.confMode = btn.dataset.confFilter; // "all" | "popular"
+  render(); // re-render buttons + (maybe) links + cards
+}
+
 
   /* =======================
      Data loading
@@ -152,39 +156,31 @@
     els.list.innerHTML = items.map(renderCard).join("");
   }
 
-  function renderConferenceControls() {
-    const links =
-      state.confMode === "popular"
-        ? `<nav style="margin:8px 0;">
-            ${POPULAR_CONFERENCES.map(
-              p => `<a href="#${p.id}">${p.label}</a>`
-            ).join(" ")}
-          </nav>`
-        : "";
+ function renderConferenceControls() {
+  const allActive = state.confMode === "all";
+  const popActive = state.confMode === "popular";
 
-    els.subfilters.innerHTML = `
-      <div style="margin:8px 0;">
-        <button data-conf-filter="all">All Conferences</button>
-        <button data-conf-filter="popular">Popular Conferences</button>
-      </div>
-      ${links}
-    `;
-  }
+  const linksHtml = `
+    <nav aria-label="Popular conference quick links" style="margin:8px 0;">
+      <strong>Popular:</strong><br>
+      ${POPULAR_CONFERENCES.map(p => `<a href="#${p.id}">${p.label}</a>`).join(" | ")}
+    </nav>
+  `;
 
-  function renderCard(item) {
-    const idAttr = item._id ? `id="${item._id}"` : "";
+  els.subfilters.innerHTML = `
+    <div style="margin:8px 0;">
+      <button type="button" data-conf-filter="all" ${allActive ? 'aria-pressed="true"' : 'aria-pressed="false"'}>
+        All Conferences
+      </button>
+      <button type="button" data-conf-filter="popular" ${popActive ? 'aria-pressed="true"' : 'aria-pressed="false"'}>
+        Popular Conferences
+      </button>
+    </div>
 
-    return `
-      <article class="calendar-card" ${idAttr}>
-        <h3>${escape(item.title || "(Untitled)")}</h3>
-        ${item.frequency ? `<p><strong>Frequency:</strong> ${escape(item.frequency)}</p>` : ""}
-        ${item.dates ? `<p><strong>Dates:</strong> ${escape(item.dates)}</p>` : ""}
-        ${item.location ? `<p><strong>Location:</strong> ${escape(item.location)}</p>` : ""}
-        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${escape(item.submissionDeadlines)}</p>` : ""}
-        ${item.website ? `<p><a href="${item.website}" target="_blank">Website</a></p>` : ""}
-      </article>
-    `;
-  }
+    ${popActive ? linksHtml : ""}
+  `;
+}
+
 
   /* =======================
      Helpers
@@ -218,3 +214,4 @@
       .replaceAll(">", "&gt;");
   }
 })();
+
