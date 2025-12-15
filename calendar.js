@@ -132,11 +132,11 @@ const POPULAR_CONFERENCES = [
 
     // show/hide conferences subfilters
    if (tag === "conferences") {
-  renderConferenceSubfilters(cached.items);
+  renderConferenceSubfilters();
 } else {
-      state.confMode = "all";
-      state.subfilters.innerHTML = "";
-    }
+  state.subfilters.innerHTML = "";
+}
+
 
     const cat = getCategory(tag);
     const label = cat?.label ?? tag;
@@ -173,32 +173,24 @@ const POPULAR_CONFERENCES = [
     renderActiveCategory();
   }
 
-function buildPopularQuickLinks(items) {
-  // Only show links for popular entries that actually exist in the loaded items
-  const existingIds = new Set(items.map(it => String(it?._raw?.id || "")).filter(Boolean));
-
+function buildPopularQuickLinks() {
   const links = POPULAR_CONFERENCES
-    .filter(p => p.id && existingIds.has(p.id))
+    .filter(p => p.id) // only ones we can actually anchor-jump to
     .map(p => `<a href="#${escapeAttr(p.id)}">${escapeHtml(p.label)}</a>`)
     .join(" ");
 
-  if (!links) return "";
-
   return `
-    <nav class="cv-conference-links" aria-label="Popular conference quick links" style="margin:8px 0;">
+    <nav aria-label="Popular conference quick links" style="margin:8px 0;">
       ${links}
     </nav>
   `;
 }
 
+
    
-  function renderConferenceSubfilters(items) {
+  function renderConferenceSubfilters() {
   const allActive = state.confMode === "all";
   const popActive = state.confMode === "popular";
-
-  const quickLinks = (state.confMode === "popular")
-    ? buildPopularQuickLinks(items)
-    : "";
 
   state.subfilters.innerHTML = `
     <div style="margin:8px 0;">
@@ -210,11 +202,12 @@ function buildPopularQuickLinks(items) {
       </button>
     </div>
 
-    ${quickLinks}
+    ${popActive ? buildPopularQuickLinks() : ""}
   `;
 
   updateConferenceSubfilterButtons();
 }
+
 
 
   function updateConferenceSubfilterButtons() {
@@ -506,5 +499,6 @@ function buildPopularQuickLinks(items) {
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
 
 
