@@ -1,8 +1,8 @@
 /* calendar.js
-   CVNet Community Calendar — clean, minimal, working
+   CVNet Community Calendar — clean, minimal, working (with Conferences subfilters + popular quick links)
 
-   Requirements in HTML:
-   - #category-menu (buttons with data-filter-tag)
+   Required in HTML:
+   - #category-menu (buttons with data-filter-tag; CLEAR should have data-filter-tag="")
    - #calendar-status
    - #calendar-subfilters
    - #calendar-list
@@ -11,9 +11,9 @@
 (() => {
   const DATA_BASE = "./";
 
-  /* =======================
-     Categories
-  ======================== */
+  // -------------------------
+  // Categories (JSON files)
+  // -------------------------
   const CATEGORIES = [
     { tag: "conferences", label: "Conferences", file: "conferences.json" },
     { tag: "online", label: "Online Seminars/Clubs", file: "online_seminars_clubs.json" },
@@ -25,10 +25,9 @@
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
-  /* =======================
-     Popular Conferences
-     (ID-based, authoritative)
-  ======================== */
+  // -------------------------
+  // Popular Conferences (IDs must match conferences.json "id")
+  // -------------------------
   const POPULAR_CONFERENCES = [
     { label: "APA", id: "american-psychological-association-apa-2026" },
     { label: "APCV", id: "epc-apcv-2026" },
@@ -50,42 +49,50 @@
 
   const POPULAR_ID_SET = new Set(POPULAR_CONFERENCES.map(p => p.id));
 
-  /* =======================
-     State
-  ======================== */
-  const state = {
-    activeTag: null,
-    confMode: "all", // "all" | "popular"
-    cache: new Map(),
-  };
-
+  // -------------------------
+  // DOM
+  // -------------------------
   const els = {
     menu: document.getElementById("category-menu"),
     list: document.getElementById("calendar-list"),
     status: document.getElementById("calendar-status"),
     subfilters: document.getElementById("calendar-subfilters"),
+    loadingMsg: document.getElementById("calendar-loading-message"), // optional
   };
 
   if (!els.menu || !els.list || !els.subfilters) {
-    console.error("calendar.js: Missing required HTML elements.");
+    console.error("calendar.js: Missing required HTML elements (#category-menu, #calendar-list, #calendar-subfilters).");
     return;
   }
 
+  // -------------------------
+  // State
+  // -------------------------
+  const state = {
+    activeTag: null,
+    confMode: "all", // "all" | "popular"
+    cache: new Map(), // tag -> normalized array
+  };
+
+  // Initial UI
   els.list.innerHTML = `<p>Select a category above to view items.</p>`;
+  els.subfilters.innerHTML = "";
+  setStatus("");
 
   els.menu.addEventListener("click", onMenuClick);
   els.subfilters.addEventListener("click", onSubfilterClick);
 
-  /* =======================
-     Menu click
-  ======================== */
+  // -------------------------
+  // Handlers
+  // -------------------------
   async function onMenuClick(e) {
     const btn = e.target.closest("button[data-filter-tag]");
     if (!btn) return;
 
-    const tag = btn.dataset.filterTag;
+    const tag = (btn.dataset.filterTag ?? "").trim();
 
-    if (!tag) {
+    // CLEAR
+    if (tag === "") {
       reset();
       return;
     }
@@ -95,49 +102,113 @@
     highlightMenu(tag);
 
     const cat = getCategory(tag);
+    if (!cat) {
+      els.list.innerHTML = `<p>Unknown category: ${escapeHtml(tag)}</p>`;
+      return;
+    }
+
+    if (els.loadingMsg) {
+      els.loadingMsg.remove();
+      els.loadingMsg = null;
+    }
+
     setStatus(`Loading all items in ${cat.label}…`);
     els.list.innerHTML = `<p>Loading…</p>`;
 
-    await ensureLoaded(tag);
+    await ensureLoaded(tag); // ✅ guarantees cache exists before render()
     render();
   }
 
   function onSubfilterClick(e) {
-  const btn = e.target.closest("button[data-conf-filter]");
-  if (!btn) return;
+    const btn = e.target.closest("button[data-conf-filter]");
+    if (!btn) return;
 
-  // Force conferences mode only
-  if (state.activeTag !== "conferences") return;
+    if (state.activeTag !== "conferences") return;
 
-  state.confMode = btn.dataset.confFilter; // "all" | "popular"
-  render(); // re-render buttons + (maybe) links + cards
-}
+    const mode = btn.dataset.confFilter; // "all" | "popular"
+    if (mode !== "all" && mode !== "popular") return;
 
+    state.confMode = mode;
+    render(); // ✅ render from cache; no loading
+  }
 
-  /* =======================
-     Data loading
-  ======================== */
+  // -------------------------
+  // Data
+  // -------------------------
   async function ensureLoaded(tag) {
     if (state.cache.has(tag)) return;
 
     const cat = getCategory(tag);
-    const res = await fetch(DATA_BASE + cat.file);
-    const json = await res.json();
+    const url = new URL(DATA_BASE + cat.file, window.location.href);
 
-    state.cache.set(tag, json.map(obj => ({
-      ...obj,
-      _id: obj.id || "",
-      _category: cat.label,
-    })));
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      els.list.innerHTML = `<p><strong>Could not load ${escapeHtml(cat.label)}.</strong> (HTTP ${res.status})</p>`;
+      state.cache.set(tag, []);
+      return;
+    }
+
+    const text = await res.text();
+    const trimmed = text.trim();
+
+    if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
+      els.list.innerHTML = `<p><strong>Could not load ${escapeHtml(cat.label)}.</strong> JSON path returned HTML.</p>`;
+      state.cache.set(tag, []);
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (err) {
+      els.list.innerHTML = `<p><strong>Invalid JSON in ${escapeHtml(cat.file)}.</strong> ${escapeHtml(err.message)}</p>`;
+      state.cache.set(tag, []);
+      return;
+    }
+
+    if (!Array.isArray(parsed)) {
+      els.list.innerHTML = `<p><strong>${escapeHtml(cat.file)} must be a JSON array</strong> (e.g., [] or [{...}]).</p>`;
+      state.cache.set(tag, []);
+      return;
+    }
+
+    const normalized = parsed.map(obj => normalizeItem(obj, cat));
+    state.cache.set(tag, normalized);
   }
 
-  /* =======================
-     Rendering
-  ======================== */
+  function normalizeItem(raw, cat) {
+    return {
+      _raw: raw,
+      _id: String(raw?.id ?? ""),
+      _category: cat.label,
+
+      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id) || "(Untitled)",
+      website: coalesce(raw.website, raw.url, raw.link) || "",
+      location: coalesce(raw.location, raw.city, raw.where) || "",
+
+      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date, raw.when, raw.schedule) || "",
+      frequency: coalesce(raw.frequency, raw.cadence) || "",
+      submissionDeadlines: coalesce(raw.submissionDeadlines, raw.submissionDeadline, raw.deadlines, raw.deadline, raw.applicationDeadline) || "",
+      description: coalesce(raw.description, raw.details, raw.notes, raw.summary) || "",
+    };
+  }
+
+  // -------------------------
+  // Rendering
+  // -------------------------
   function render() {
     const tag = state.activeTag;
+    if (!tag) return;
+
     const cat = getCategory(tag);
-    let items = state.cache.get(tag) || [];
+    const cached = state.cache.get(tag);
+
+    if (!cached) {
+      els.list.innerHTML = `<p>Loading…</p>`;
+      return;
+    }
+
+    let items = cached;
 
     if (tag === "conferences") {
       renderConferenceControls();
@@ -153,45 +224,62 @@
       setStatus(`Loaded ${items.length} items in ${cat.label}.`);
     }
 
-    els.list.innerHTML = items.map(renderCard).join("");
+    els.list.innerHTML = items.length
+      ? items.map(renderCard).join("")
+      : `<p>No items found.</p>`;
   }
 
- function renderConferenceControls() {
-  const allActive = state.confMode === "all";
-  const popActive = state.confMode === "popular";
+  function renderConferenceControls() {
+    const allActive = state.confMode === "all";
+    const popActive = state.confMode === "popular";
 
-  const linksHtml = `
-    <nav aria-label="Popular conference quick links" style="margin:8px 0;">
-      <strong>Popular:</strong><br>
-      ${POPULAR_CONFERENCES.map(p => `<a href="#${p.id}">${p.label}</a>`).join(" | ")}
-    </nav>
-  `;
+    const linksHtml = popActive
+      ? `
+        <nav aria-label="Popular conference quick links" style="margin:8px 0;">
+          <strong>Popular:</strong><br>
+          ${POPULAR_CONFERENCES.map(p => `<a href="#${escapeAttr(p.id)}">${escapeHtml(p.label)}</a>`).join(" | ")}
+        </nav>
+      `
+      : "";
 
-  els.subfilters.innerHTML = `
-    <div style="margin:8px 0;">
-      <button type="button" data-conf-filter="all" ${allActive ? 'aria-pressed="true"' : 'aria-pressed="false"'}>
-        All Conferences
-      </button>
-      <button type="button" data-conf-filter="popular" ${popActive ? 'aria-pressed="true"' : 'aria-pressed="false"'}>
-        Popular Conferences
-      </button>
-    </div>
+    els.subfilters.innerHTML = `
+      <div style="margin:8px 0;">
+        <button type="button" data-conf-filter="all" aria-pressed="${allActive ? "true" : "false"}">All Conferences</button>
+        <button type="button" data-conf-filter="popular" aria-pressed="${popActive ? "true" : "false"}">Popular Conferences</button>
+      </div>
+      ${linksHtml}
+    `;
+  }
 
-    ${popActive ? linksHtml : ""}
-  `;
-}
+  function renderCard(item) {
+    const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
 
+    return `
+      <article class="calendar-card"${idAttr}>
+        <h3>${escapeHtml(item.title)}</h3>
 
-  /* =======================
-     Helpers
-  ======================== */
+        ${item.frequency ? `<p><strong>Frequency:</strong> ${escapeHtml(item.frequency)}</p>` : ""}
+        ${item.dates ? `<p><strong>Dates:</strong> ${escapeHtml(item.dates)}</p>` : ""}
+        ${item.location ? `<p><strong>Location:</strong> ${escapeHtml(item.location)}</p>` : ""}
+        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${escapeHtml(item.submissionDeadlines)}</p>` : ""}
+
+        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank" rel="noopener">Website</a></p>` : ""}
+        ${item.description ? `<p>${nl2br(escapeHtml(item.description))}</p>` : ""}
+      </article>
+    `;
+  }
+
+  // -------------------------
+  // Helpers
+  // -------------------------
   function getCategory(tag) {
-    return CATEGORIES.find(c => c.tag === tag);
+    return CATEGORIES.find(c => c.tag === tag) || null;
   }
 
   function reset() {
     state.activeTag = null;
     state.confMode = "all";
+    highlightMenu("");
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items.</p>`;
     setStatus("Cleared selection.");
@@ -202,16 +290,36 @@
   }
 
   function highlightMenu(tag) {
-    els.menu.querySelectorAll("button").forEach(b => {
-      b.classList.toggle("active", b.dataset.filterTag === tag);
+    els.menu.querySelectorAll("button[data-filter-tag]").forEach(b => {
+      const bTag = (b.dataset.filterTag ?? "").trim();
+      b.classList.toggle("active", bTag === tag);
+      b.setAttribute("aria-pressed", bTag === tag ? "true" : "false");
     });
   }
 
-  function escape(s) {
+  function coalesce(...vals) {
+    for (const v of vals) {
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s) return s;
+    }
+    return "";
+  }
+
+  function escapeHtml(s) {
     return String(s)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function escapeAttr(s) {
+    return String(s).replaceAll('"', "%22");
+  }
+
+  function nl2br(s) {
+    return String(s).replaceAll("\n", "<br>");
   }
 })();
-
