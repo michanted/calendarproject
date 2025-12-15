@@ -1,12 +1,13 @@
 /* calendar.js
-   CVNet Community Calendar — Robust Version
+   CVNet Community Calendar — Robust, Category-on-Demand
 
-   Goals:
-   - GitHub Pages-safe paths
-   - Category loads on demand (click -> fetch that JSON)
-   - One bad JSON file won't break the rest
-   - Normalizes common fields across schemas
-   - Still shows extra JSON fields so data never "vanishes"
+   - GitHub Pages-safe fetch paths
+   - Loads only the clicked category (cached thereafter)
+   - One broken JSON file won’t break other categories
+   - Normalizes common fields AND shows extra fields in a "More fields" section
+   - Status line behavior:
+       Click -> "Loading all items in <Category>…"
+       Done  -> "Loaded <N> items in <Category>."
 */
 
 (() => {
@@ -22,7 +23,7 @@
   ];
 
   const state = {
-    cache: new Map(),      // tag -> { ok: true, items } OR { ok:false, error }
+    cache: new Map(), // tag -> { ok:true, items:[...] } OR { ok:false, error:Error }
     activeTag: null,
     menu: null,
     list: null,
@@ -48,7 +49,7 @@
     }
 
     state.list.innerHTML = `<p>Select a category above to view items.</p>`;
-    setStatus("Ready.");
+    setStatus("");
 
     state.menu.addEventListener("click", onMenuClick);
   }
@@ -59,7 +60,7 @@
 
     const tag = (btn.dataset.filterTag || "").trim();
 
-    // CLEAR -> return to neutral
+    // CLEAR -> neutral state
     if (tag === "") {
       state.activeTag = null;
       updateActiveButton("");
@@ -68,70 +69,76 @@
       return;
     }
 
+    const cat = getCategory(tag);
+    const label = cat?.label ?? tag;
+
     state.activeTag = tag;
-updateActiveButton(tag);
+    updateActiveButton(tag);
 
-// Instant feedback (no lag feel)
-const cat = CATEGORIES.find((c) => c.tag === tag);
-setStatus(cat ? `Loading ${cat.label}…` : "Loading…");
-
-// Optional: immediately show a small loading placeholder in the list
-state.list.innerHTML = `<p>Loading…</p>`;
-
-
-    // Remove any placeholder loading message if present
+    // remove placeholder msg if present
     if (state.loadingMsg) {
       state.loadingMsg.remove();
       state.loadingMsg = null;
     }
 
-    // Load category (cached after first fetch)
+    // Immediate status update exactly as requested
+    setStatus(`Loading all items in ${label}…`);
+
+    // Optional: immediate visual feedback (keeps the page feeling alive)
+    state.list.innerHTML = `<p>Loading…</p>`;
+
     await ensureCategoryLoaded(tag);
 
-    // Render
+    // Render (and if cached, ensure status line still ends in "Loaded N items…")
     renderActiveCategory();
   }
 
   async function ensureCategoryLoaded(tag) {
-    if (state.cache.has(tag)) return;
+    // If cached, update status instantly and return
+    if (state.cache.has(tag)) {
+      const cached = state.cache.get(tag);
+      const cat = getCategory(tag);
+      if (cat && cached?.ok) {
+        setStatus(`Loaded ${cached.items.length} items in ${cat.label}.`);
+      }
+      return;
+    }
 
-    const cat = CATEGORIES.find((c) => c.tag === tag);
+    const cat = getCategory(tag);
     if (!cat) {
       state.cache.set(tag, { ok: false, error: new Error(`Unknown category tag: ${tag}`) });
       return;
     }
 
     setBusy(true);
-    setStatus(`Loading ${cat.label}…`);
 
     try {
-      const items = await fetchCategoryArray(cat.file);
-      const normalized = items.map((raw) => normalizeItem(raw, cat));
-      state.cache.set(tag, { ok: true, items: normalized });
+      const rawArray = await fetchCategoryArray(cat.file);
+      const normalized = rawArray.map((raw) => normalizeItem(raw, cat));
 
-      setStatus(`Loaded ${normalized.length} item(s) in ${cat.label}.`);
+      state.cache.set(tag, { ok: true, items: normalized });
+      setStatus(`Loaded ${normalized.length} items in ${cat.label}.`);
     } catch (err) {
       console.error(`[CVNet] Failed loading ${cat.file}:`, err);
       state.cache.set(tag, { ok: false, error: err });
-      setStatus(`Could not load ${cat.label}.`);
+
+      // Keep your requested messaging style, but honest:
+      setStatus(`Could not load items in ${cat.label}.`);
     } finally {
       setBusy(false);
     }
   }
 
   async function fetchCategoryArray(filename) {
-    // GitHub Pages-safe, works from /repo/ subpaths
     const url = new URL(filename, window.location.href);
 
-    // Fetch as text first so we can give cleaner errors than "Unexpected token ..."
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
 
+    // Read as text first so we can throw a helpful error for invalid JSON (NaN, etc.)
     const text = await res.text();
-
-    // Explicitly catch common non-JSON issues
-    // (e.g., HTML error page returned)
     const trimmed = text.trim();
+
     if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
       throw new Error(`Expected JSON but got HTML from ${url} (wrong publish folder/path?)`);
     }
@@ -140,7 +147,6 @@ state.list.innerHTML = `<p>Loading…</p>`;
     try {
       parsed = JSON.parse(text);
     } catch (e) {
-      // This will catch NaN, trailing commas, etc.
       throw new Error(`Invalid JSON in ${filename}: ${e.message}`);
     }
 
@@ -148,9 +154,9 @@ state.list.innerHTML = `<p>Loading…</p>`;
       throw new Error(`${filename} must be a JSON array (e.g., [] or [{...}])`);
     }
 
-    // Ensure each entry is an object
     for (let i = 0; i < parsed.length; i++) {
-      if (parsed[i] === null || typeof parsed[i] !== "object" || Array.isArray(parsed[i])) {
+      const v = parsed[i];
+      if (v === null || typeof v !== "object" || Array.isArray(v)) {
         throw new Error(`${filename}[${i}] must be an object { ... }`);
       }
     }
@@ -159,7 +165,6 @@ state.list.innerHTML = `<p>Loading…</p>`;
   }
 
   function normalizeItem(raw, cat) {
-    // Canonical fields (these drive the UI)
     const title = coalesce(raw.title, raw.name, raw.program, raw.event, raw.id) || "(Untitled)";
     const website = coalesce(raw.website, raw.url, raw.link) || "";
     const location = coalesce(raw.location, raw.city, raw.where) || "";
@@ -197,7 +202,6 @@ state.list.innerHTML = `<p>Loading…</p>`;
 
     const description = coalesce(raw.description, raw.details, raw.notes, raw.summary) || "";
 
-    // Keep original fields too, so nothing is lost
     return {
       _tag: cat.tag,
       _label: cat.label,
@@ -221,7 +225,7 @@ state.list.innerHTML = `<p>Loading…</p>`;
       return;
     }
 
-    const cat = CATEGORIES.find((c) => c.tag === tag);
+    const cat = getCategory(tag);
     const label = cat?.label ?? tag;
 
     const cached = state.cache.get(tag);
@@ -237,6 +241,9 @@ state.list.innerHTML = `<p>Loading…</p>`;
 
     const items = cached.items;
 
+    // Ensure final status line exactly matches your desired successful wording
+    if (cat) setStatus(`Loaded ${items.length} items in ${cat.label}.`);
+
     if (!items.length) {
       state.list.innerHTML = `<p>No items found for <strong>${escapeHtml(label)}</strong> yet.</p>`;
       return;
@@ -246,16 +253,14 @@ state.list.innerHTML = `<p>Loading…</p>`;
   }
 
   function renderCard(item) {
-    // "Core" fields
     const lines = [];
 
     if (item.frequency) lines.push(metaRow("Frequency", item.frequency));
     if (item.dates) lines.push(metaRow("Dates", item.dates));
     if (item.location) lines.push(metaRow("Location", item.location));
-    if (item.deadlines) lines.push(metaRow("Deadlines", item.deadlines));
-    if (item.org) lines.push(metaRow("Org", item.org));
+    if (item.deadlines) lines.push(metaRow("Submission deadlines", item.deadlines));
+    if (item.org) lines.push(metaRow("Organization", item.org));
 
-    // "Extra" fields: show anything else that exists in the original JSON
     const extra = buildExtraFields(item._raw);
 
     return `
@@ -294,64 +299,38 @@ state.list.innerHTML = `<p>Loading…</p>`;
   }
 
   function buildExtraFields(raw) {
-    // Don’t duplicate core fields we already show, and hide noisy/internal ones.
     const hidden = new Set([
       "id",
       "_tag",
       "_label",
       "_raw",
-      "title",
-      "name",
-      "program",
-      "event",
-      "website",
-      "url",
-      "link",
-      "location",
-      "city",
-      "where",
-      "dates",
-      "date",
-      "startDate",
-      "start_date",
-      "when",
-      "schedule",
-      "frequency",
-      "cadence",
-      "submissionDeadlines",
-      "submissionDeadline",
-      "applicationDeadline",
-      "deadlines",
-      "deadline",
-      "datesDeadline",
-      "organization",
-      "organizer",
-      "institution",
-      "institutionProgram",
-      "journal",
-      "company",
-      "department",
-      "degreeType",
-      "description",
-      "details",
-      "notes",
-      "summary",
+      // title-ish
+      "title", "name", "program", "event",
+      // website-ish
+      "website", "url", "link",
+      // location-ish
+      "location", "city", "where",
+      // date-ish
+      "dates", "date", "startDate", "start_date", "when", "schedule",
+      // frequency-ish
+      "frequency", "cadence",
+      // deadline-ish
+      "submissionDeadlines", "submissionDeadline", "applicationDeadline", "deadlines", "deadline", "datesDeadline",
+      // org-ish
+      "organization", "organizer", "institution", "institutionProgram", "journal", "company", "department", "degreeType",
+      // description-ish
+      "description", "details", "notes", "summary",
     ]);
 
-    const extras = [];
     const keys = Object.keys(raw).filter((k) => !hidden.has(k));
-
-    // Stable ordering
     keys.sort((a, b) => a.localeCompare(b));
 
+    const extras = [];
     for (const k of keys) {
       const v = raw[k];
       if (v === null || v === undefined || v === "") continue;
 
-      // Convert objects/arrays to readable string
-      const printed =
-        typeof v === "object" ? JSON.stringify(v) : String(v);
-
+      const printed = typeof v === "object" ? JSON.stringify(v) : String(v);
       extras.push(`<div><dt>${escapeHtml(k)}</dt><dd>${nl2br(escapeHtml(printed))}</dd></div>`);
     }
 
@@ -389,6 +368,10 @@ state.list.innerHTML = `<p>Loading…</p>`;
     if (state.status) state.status.textContent = msg;
   }
 
+  function getCategory(tag) {
+    return CATEGORIES.find((c) => c.tag === tag) || null;
+  }
+
   function coalesce(...vals) {
     for (const v of vals) {
       if (v === null || v === undefined) continue;
@@ -408,7 +391,6 @@ state.list.innerHTML = `<p>Loading…</p>`;
   }
 
   function escapeAttr(s) {
-    // safe-ish for URLs in href attribute
     return String(s).replaceAll('"', "%22");
   }
 
@@ -416,4 +398,3 @@ state.list.innerHTML = `<p>Loading…</p>`;
     return String(s).replaceAll("\n", "<br>");
   }
 })();
-
