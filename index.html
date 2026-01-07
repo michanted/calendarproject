@@ -46,17 +46,21 @@ and
         <button type="button" data-filter-tag="competitions">Competitions</button>
       </div>
 
-      <p id="calendar-status" class="calendar-status" aria-live="polite"></p>
+      <p>
+  <label for="calendar-search"><strong>Search:</strong></label><br>
+  <input
+    type="text"
+    id="calendar-search"
+    placeholder="type to search all calendar items"
+    autocomplete="off"
+  >
+</p>
+
       <p id="calendar-status" class="calendar-status" aria-live="polite"></p>
 <div id="calendar-subfilters"></div>
 
 <div id="calendar-list"></div>
 
-    </section>
-
-    <section>
-      <h2>Calendar items</h2>
-      <div id="calendar-list"></div>
     </section>
 
 <p style="margin: 16px 0;">
@@ -111,14 +115,3 @@ and
   <script src="calendar.js" defer></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
