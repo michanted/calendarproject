@@ -1,11 +1,13 @@
 /* calendar.js
-   CVNet Community Calendar — clean, minimal, working (with Conferences subfilters + popular quick links)
+   CVNet Community Calendar — clean, minimal, working
+   (with Conferences subfilters + full-page DOS-style search)
 
    Required in HTML:
-   - #category-menu (buttons with data-filter-tag; CLEAR should have data-filter-tag="")
+   - #category-menu (buttons with data-filter-tag; CLEAR has data-filter-tag="")
    - #calendar-status
    - #calendar-subfilters
    - #calendar-list
+   - #calendar-search
 */
 
 (() => {
@@ -26,7 +28,7 @@
   ];
 
   // -------------------------
-  // Popular Conferences (IDs must match conferences.json "id")
+  // Popular Conferences
   // -------------------------
   const POPULAR_CONFERENCES = [
     { label: "APA", id: "american-psychological-association-apa-2026" },
@@ -57,11 +59,11 @@
     list: document.getElementById("calendar-list"),
     status: document.getElementById("calendar-status"),
     subfilters: document.getElementById("calendar-subfilters"),
-    loadingMsg: document.getElementById("calendar-loading-message"), // optional
+    search: document.getElementById("calendar-search"),
   };
 
   if (!els.menu || !els.list || !els.subfilters) {
-    console.error("calendar.js: Missing required HTML elements (#category-menu, #calendar-list, #calendar-subfilters).");
+    console.error("calendar.js: Missing required HTML elements.");
     return;
   }
 
@@ -70,11 +72,14 @@
   // -------------------------
   const state = {
     activeTag: null,
-    confMode: "all", // "all" | "popular"
-    cache: new Map(), // tag -> normalized array
+    confMode: "all",
+    cache: new Map(),
+    searchQuery: "",
   };
 
-  // Initial UI
+  // -------------------------
+  // Init
+  // -------------------------
   els.list.innerHTML = `<p>Select a category above to view items.</p>`;
   els.subfilters.innerHTML = "";
   setStatus("");
@@ -82,47 +87,24 @@
   els.menu.addEventListener("click", onMenuClick);
   els.subfilters.addEventListener("click", onSubfilterClick);
 
+  if (els.search) {
+    els.search.addEventListener("input", () => {
+      state.searchQuery = els.search.value.trim().toLowerCase();
+      render();
+    });
+  }
+
   // -------------------------
-  // Initial load from URL (Step 1)
+  // Initial load from URL
   // -------------------------
   (async () => {
-    const params = new URLSearchParams(window.location.search);
-    const sectionFromURL = params.get("section");
-
-    if (!sectionFromURL) return;
-
-    const cat = getCategory(sectionFromURL);
-    if (!cat) return;
-
-    state.activeTag = sectionFromURL;
-    state.confMode = "all";
-    highlightMenu(sectionFromURL);
-
-    setStatus(`Loading all items in ${cat.label}…`);
-    els.list.innerHTML = `<p>Loading…</p>`;
-
-    await ensureLoaded(sectionFromURL);
-    render();
-  })();
-
-
-  // -------------------------
-  // Handle browser back/forward (popstate) — Step 3
-  // -------------------------
-  window.addEventListener("popstate", async () => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
-
-    if (!section) {
-      reset();
-      return;
-    }
+    const section = new URLSearchParams(window.location.search).get("section");
+    if (!section) return;
 
     const cat = getCategory(section);
     if (!cat) return;
 
     state.activeTag = section;
-    state.confMode = "all";
     highlightMenu(section);
 
     setStatus(`Loading all items in ${cat.label}…`);
@@ -130,10 +112,8 @@
 
     await ensureLoaded(section);
     render();
-  });
+  })();
 
-   
-   
   // -------------------------
   // Handlers
   // -------------------------
@@ -143,109 +123,77 @@
 
     const tag = (btn.dataset.filterTag ?? "").trim();
 
-    // CLEAR
-   if (tag === "") {
-  history.pushState({}, "", window.location.pathname);
-  reset();
-  return;
-}
-
-    state.activeTag = tag;
-     const url = new URL(window.location.href);
-url.searchParams.set("section", tag);
-history.pushState({}, "", url);
-    state.confMode = "all";
-    highlightMenu(tag);
-
-    const cat = getCategory(tag);
-    if (!cat) {
-      els.list.innerHTML = `<p>Unknown category: ${escapeHtml(tag)}</p>`;
+    if (tag === "") {
+      history.pushState({}, "", window.location.pathname);
+      reset();
       return;
     }
 
-    if (els.loadingMsg) {
-      els.loadingMsg.remove();
-      els.loadingMsg = null;
-    }
+    state.activeTag = tag;
+    state.confMode = "all";
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", tag);
+    history.pushState({}, "", url);
+
+    highlightMenu(tag);
+
+    const cat = getCategory(tag);
+    if (!cat) return;
 
     setStatus(`Loading all items in ${cat.label}…`);
     els.list.innerHTML = `<p>Loading…</p>`;
 
-    await ensureLoaded(tag); // ✅ guarantees cache exists before render()
+    await ensureLoaded(tag);
     render();
   }
 
   function onSubfilterClick(e) {
     const btn = e.target.closest("button[data-conf-filter]");
-    if (!btn) return;
+    if (!btn || state.activeTag !== "conferences") return;
 
-    if (state.activeTag !== "conferences") return;
-
-    const mode = btn.dataset.confFilter; // "all" | "popular"
+    const mode = btn.dataset.confFilter;
     if (mode !== "all" && mode !== "popular") return;
 
     state.confMode = mode;
-    render(); // ✅ render from cache; no loading
+    render();
   }
 
   // -------------------------
-  // Data
+  // Data loading
   // -------------------------
   async function ensureLoaded(tag) {
     if (state.cache.has(tag)) return;
 
     const cat = getCategory(tag);
-    const url = new URL(DATA_BASE + cat.file, window.location.href);
-
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(new URL(DATA_BASE + cat.file, location.href), { cache: "no-store" });
     if (!res.ok) {
-      els.list.innerHTML = `<p><strong>Could not load ${escapeHtml(cat.label)}.</strong> (HTTP ${res.status})</p>`;
-      state.cache.set(tag, []);
-      return;
-    }
-
-    const text = await res.text();
-    const trimmed = text.trim();
-
-    if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
-      els.list.innerHTML = `<p><strong>Could not load ${escapeHtml(cat.label)}.</strong> JSON path returned HTML.</p>`;
       state.cache.set(tag, []);
       return;
     }
 
     let parsed;
     try {
-      parsed = JSON.parse(text);
-    } catch (err) {
-      els.list.innerHTML = `<p><strong>Invalid JSON in ${escapeHtml(cat.file)}.</strong> ${escapeHtml(err.message)}</p>`;
+      parsed = JSON.parse(await res.text());
+    } catch {
       state.cache.set(tag, []);
       return;
     }
 
-    if (!Array.isArray(parsed)) {
-      els.list.innerHTML = `<p><strong>${escapeHtml(cat.file)} must be a JSON array</strong> (e.g., [] or [{...}]).</p>`;
-      state.cache.set(tag, []);
-      return;
-    }
-
-    const normalized = parsed.map(obj => normalizeItem(obj, cat));
-    state.cache.set(tag, normalized);
+    state.cache.set(tag, parsed.map(o => normalizeItem(o, cat)));
   }
 
   function normalizeItem(raw, cat) {
     return {
-      _raw: raw,
       _id: String(raw?.id ?? ""),
       _category: cat.label,
-
-      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id) || "(Untitled)",
-      website: coalesce(raw.website, raw.url, raw.link) || "",
-      location: coalesce(raw.location, raw.city, raw.where) || "",
-
-      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date, raw.when, raw.schedule) || "",
-      frequency: coalesce(raw.frequency, raw.cadence) || "",
-      submissionDeadlines: coalesce(raw.submissionDeadlines, raw.submissionDeadline, raw.deadlines, raw.deadline, raw.applicationDeadline) || "",
-      description: coalesce(raw.description, raw.details, raw.notes, raw.summary) || "",
+      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id),
+      website: coalesce(raw.website, raw.url, raw.link),
+      location: coalesce(raw.location, raw.city, raw.where),
+      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date),
+      frequency: coalesce(raw.frequency),
+      submissionDeadlines: coalesce(raw.submissionDeadlines, raw.deadline),
+      description: coalesce(raw.description, raw.notes),
     };
   }
 
@@ -253,30 +201,33 @@ history.pushState({}, "", url);
   // Rendering
   // -------------------------
   function render() {
-    const tag = state.activeTag;
-    if (!tag) return;
+    if (!state.activeTag) return;
 
-    const cat = getCategory(tag);
-    const cached = state.cache.get(tag);
+    let items = [];
 
-    if (!cached) {
-      els.list.innerHTML = `<p>Loading…</p>`;
-      return;
+    if (state.searchQuery) {
+      for (const arr of state.cache.values()) items.push(...arr);
+    } else {
+      items = state.cache.get(state.activeTag) || [];
     }
 
-    let items = cached;
-
-    if (tag === "conferences") {
-      renderConferenceControls();
-
-      if (state.confMode === "popular") {
-        items = items.filter(i => POPULAR_ID_SET.has(i._id));
-        setStatus(`Loaded ${items.length} items in Popular Conferences.`);
-      } else {
-        setStatus(`Loaded ${items.length} items in ${cat.label}.`);
-      }
-    } else {
+    if (state.searchQuery) {
+      const q = state.searchQuery;
+      items = items.filter(i =>
+        Object.values(i).join(" ").toLowerCase().includes(q)
+      );
+      setStatus(`Search results (${items.length})`);
       els.subfilters.innerHTML = "";
+    } else {
+      const cat = getCategory(state.activeTag);
+      if (state.activeTag === "conferences") {
+        renderConferenceControls();
+        if (state.confMode === "popular") {
+          items = items.filter(i => POPULAR_ID_SET.has(i._id));
+        }
+      } else {
+        els.subfilters.innerHTML = "";
+      }
       setStatus(`Loaded ${items.length} items in ${cat.label}.`);
     }
 
@@ -286,41 +237,22 @@ history.pushState({}, "", url);
   }
 
   function renderConferenceControls() {
-    const allActive = state.confMode === "all";
-    const popActive = state.confMode === "popular";
-
-    const linksHtml = popActive
-      ? `
-        <nav aria-label="Popular conference quick links" style="margin:8px 0;">
-          <strong>Popular:</strong><br>
-          ${POPULAR_CONFERENCES.map(p => `<a href="#${escapeAttr(p.id)}">${escapeHtml(p.label)}</a>`).join(" | ")}
-        </nav>
-      `
-      : "";
-
     els.subfilters.innerHTML = `
       <div style="margin:8px 0;">
-        <button type="button" data-conf-filter="all" aria-pressed="${allActive ? "true" : "false"}">All Conferences</button>
-        <button type="button" data-conf-filter="popular" aria-pressed="${popActive ? "true" : "false"}">Popular Conferences</button>
+        <button data-conf-filter="all">All Conferences</button>
+        <button data-conf-filter="popular">Popular Conferences</button>
       </div>
-      ${linksHtml}
     `;
   }
 
   function renderCard(item) {
-    const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
-
     return `
-      <article class="calendar-card"${idAttr}>
+      <article class="calendar-card" id="${escapeAttr(item._id)}">
         <h3>${escapeHtml(item.title)}</h3>
-
-        ${item.frequency ? `<p><strong>Frequency:</strong> ${escapeHtml(item.frequency)}</p>` : ""}
         ${item.dates ? `<p><strong>Dates:</strong> ${escapeHtml(item.dates)}</p>` : ""}
         ${item.location ? `<p><strong>Location:</strong> ${escapeHtml(item.location)}</p>` : ""}
-        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${escapeHtml(item.submissionDeadlines)}</p>` : ""}
-
-        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank" rel="noopener">Website</a></p>` : ""}
-        ${item.description ? `<p>${nl2br(escapeHtml(item.description))}</p>` : ""}
+        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank">Website</a></p>` : ""}
+        ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
       </article>
     `;
   }
@@ -329,13 +261,12 @@ history.pushState({}, "", url);
   // Helpers
   // -------------------------
   function getCategory(tag) {
-    return CATEGORIES.find(c => c.tag === tag) || null;
+    return CATEGORIES.find(c => c.tag === tag);
   }
 
   function reset() {
     state.activeTag = null;
-    state.confMode = "all";
-    highlightMenu("");
+    state.searchQuery = "";
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items.</p>`;
     setStatus("Cleared selection.");
@@ -346,38 +277,22 @@ history.pushState({}, "", url);
   }
 
   function highlightMenu(tag) {
-    els.menu.querySelectorAll("button[data-filter-tag]").forEach(b => {
-      const bTag = (b.dataset.filterTag ?? "").trim();
-      b.classList.toggle("active", bTag === tag);
-      b.setAttribute("aria-pressed", bTag === tag ? "true" : "false");
-    });
+    els.menu.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("active", b.dataset.filterTag === tag)
+    );
   }
 
-  function coalesce(...vals) {
-    for (const v of vals) {
-      if (v === null || v === undefined) continue;
-      const s = String(v).trim();
-      if (s) return s;
-    }
-    return "";
+  function coalesce(...v) {
+    return v.find(x => x && String(x).trim()) || "";
   }
 
   function escapeHtml(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[c])
+    );
   }
 
   function escapeAttr(s) {
     return String(s).replaceAll('"', "%22");
   }
-
-  function nl2br(s) {
-    return String(s).replaceAll("\n", "<br>");
-  }
 })();
-
-
