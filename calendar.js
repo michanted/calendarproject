@@ -201,7 +201,7 @@
   // Rendering
   // -------------------------
   function render() {
-    if (!state.activeTag) return;
+if (!state.activeTag && !state.searchQuery) return;
 
     let items = [];
 
@@ -296,3 +296,4 @@
     return String(s).replaceAll('"', "%22");
   }
 })();
+
