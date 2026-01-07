@@ -83,6 +83,30 @@
   els.subfilters.addEventListener("click", onSubfilterClick);
 
   // -------------------------
+  // Initial load from URL (Step 1)
+  // -------------------------
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const sectionFromURL = params.get("section");
+
+    if (!sectionFromURL) return;
+
+    const cat = getCategory(sectionFromURL);
+    if (!cat) return;
+
+    state.activeTag = sectionFromURL;
+    state.confMode = "all";
+    highlightMenu(sectionFromURL);
+
+    setStatus(`Loading all items in ${cat.label}…`);
+    els.list.innerHTML = `<p>Loading…</p>`;
+
+    await ensureLoaded(sectionFromURL);
+    render();
+  })();
+
+   
+  // -------------------------
   // Handlers
   // -------------------------
   async function onMenuClick(e) {
@@ -323,3 +347,4 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
