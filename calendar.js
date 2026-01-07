@@ -314,16 +314,31 @@
   }
 
   function renderConferenceControls() {
-    const allActive = state.confMode === "all";
-    const popActive = state.confMode === "popular";
+  const allActive = state.confMode === "all";
+  const popActive = state.confMode === "popular";
 
-    els.subfilters.innerHTML = `
-      <div style="margin:8px 0;">
-        <button type="button" data-conf-filter="all" aria-pressed="${allActive ? "true" : "false"}">All Conferences</button>
-        <button type="button" data-conf-filter="popular" aria-pressed="${popActive ? "true" : "false"}">Popular Conferences</button>
-      </div>
-    `;
-  }
+  els.subfilters.innerHTML = `
+    <div class="category-menu" style="margin:8px 0;">
+      <button
+        type="button"
+        data-conf-filter="all"
+        class="${allActive ? "active" : ""}"
+        aria-pressed="${allActive}"
+      >
+        All Conferences
+      </button>
+
+      <button
+        type="button"
+        data-conf-filter="popular"
+        class="${popActive ? "active" : ""}"
+        aria-pressed="${popActive}"
+      >
+        Popular Conferences
+      </button>
+    </div>
+  `;
+}
 
   function renderCard(item) {
     const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
@@ -402,3 +417,4 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
