@@ -105,6 +105,34 @@
     render();
   })();
 
+
+  // -------------------------
+  // Handle browser back/forward (popstate) — Step 3
+  // -------------------------
+  window.addEventListener("popstate", async () => {
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+
+    if (!section) {
+      reset();
+      return;
+    }
+
+    const cat = getCategory(section);
+    if (!cat) return;
+
+    state.activeTag = section;
+    state.confMode = "all";
+    highlightMenu(section);
+
+    setStatus(`Loading all items in ${cat.label}…`);
+    els.list.innerHTML = `<p>Loading…</p>`;
+
+    await ensureLoaded(section);
+    render();
+  });
+
+   
    
   // -------------------------
   // Handlers
@@ -116,12 +144,16 @@
     const tag = (btn.dataset.filterTag ?? "").trim();
 
     // CLEAR
-    if (tag === "") {
-      reset();
-      return;
-    }
+   if (tag === "") {
+  history.pushState({}, "", window.location.pathname);
+  reset();
+  return;
+}
 
     state.activeTag = tag;
+     const url = new URL(window.location.href);
+url.searchParams.set("section", tag);
+history.pushState({}, "", url);
     state.confMode = "all";
     highlightMenu(tag);
 
@@ -347,4 +379,5 @@
     return String(s).replaceAll("\n", "<br>");
   }
 })();
+
 
