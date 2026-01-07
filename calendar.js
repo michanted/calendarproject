@@ -416,5 +416,21 @@
   function nl2br(s) {
     return String(s).replaceAll("\n", "<br>");
   }
+// -------------------------
+// Last updated (footer)
+// -------------------------
+const lastUpdatedEl = document.getElementById("last-updated");
+if (lastUpdatedEl) {
+  const d = new Date(document.lastModified);
+
+  const formatted = d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  lastUpdatedEl.textContent = `Last Updated: ${formatted}`;
+}   
 })();
+
 
