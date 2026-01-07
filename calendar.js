@@ -1,6 +1,6 @@
 /* calendar.js
    CVNet Community Calendar — clean, minimal, working
-   (with Conferences subfilters + full-page DOS-style search)
+   (Conferences subfilters + full-page DOS-style search)
 
    Required in HTML:
    - #category-menu (buttons with data-filter-tag; CLEAR has data-filter-tag="")
@@ -13,9 +13,6 @@
 (() => {
   const DATA_BASE = "./";
 
-  // -------------------------
-  // Categories (JSON files)
-  // -------------------------
   const CATEGORIES = [
     { tag: "conferences", label: "Conferences", file: "conferences.json" },
     { tag: "online", label: "Online Seminars/Clubs", file: "online_seminars_clubs.json" },
@@ -27,9 +24,6 @@
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
-  // -------------------------
-  // Popular Conferences
-  // -------------------------
   const POPULAR_CONFERENCES = [
     { label: "APA", id: "american-psychological-association-apa-2026" },
     { label: "APCV", id: "epc-apcv-2026" },
@@ -51,9 +45,6 @@
 
   const POPULAR_ID_SET = new Set(POPULAR_CONFERENCES.map(p => p.id));
 
-  // -------------------------
-  // DOM
-  // -------------------------
   const els = {
     menu: document.getElementById("category-menu"),
     list: document.getElementById("calendar-list"),
@@ -67,20 +58,16 @@
     return;
   }
 
-  // -------------------------
-  // State
-  // -------------------------
   const state = {
     activeTag: null,
-    confMode: "all",
-    cache: new Map(),
+    confMode: "all", // "all" | "popular"
+    cache: new Map(), // tag -> normalized array
     searchQuery: "",
+    allLoaded: false,
   };
 
-  // -------------------------
-  // Init
-  // -------------------------
-  els.list.innerHTML = `<p>Select a category above to view items.</p>`;
+  // Init UI
+  els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
   els.subfilters.innerHTML = "";
   setStatus("");
 
@@ -88,15 +75,10 @@
   els.subfilters.addEventListener("click", onSubfilterClick);
 
   if (els.search) {
-    els.search.addEventListener("input", () => {
-      state.searchQuery = els.search.value.trim().toLowerCase();
-      render();
-    });
+    els.search.addEventListener("input", onSearchInput);
   }
 
-  // -------------------------
-  // Initial load from URL
-  // -------------------------
+  // Initial load from URL (?section=...)
   (async () => {
     const section = new URLSearchParams(window.location.search).get("section");
     if (!section) return;
@@ -105,6 +87,7 @@
     if (!cat) return;
 
     state.activeTag = section;
+    state.confMode = "all";
     highlightMenu(section);
 
     setStatus(`Loading all items in ${cat.label}…`);
@@ -114,6 +97,31 @@
     render();
   })();
 
+  // Back/Forward support
+  window.addEventListener("popstate", async () => {
+    // clear search on navigation changes (keeps behavior sane)
+    clearSearch();
+
+    const section = new URLSearchParams(window.location.search).get("section");
+    if (!section) {
+      reset();
+      return;
+    }
+
+    const cat = getCategory(section);
+    if (!cat) return;
+
+    state.activeTag = section;
+    state.confMode = "all";
+    highlightMenu(section);
+
+    setStatus(`Loading all items in ${cat.label}…`);
+    els.list.innerHTML = `<p>Loading…</p>`;
+
+    await ensureLoaded(section);
+    render();
+  });
+
   // -------------------------
   // Handlers
   // -------------------------
@@ -121,8 +129,12 @@
     const btn = e.target.closest("button[data-filter-tag]");
     if (!btn) return;
 
+    // selecting a category = exit search mode
+    clearSearch();
+
     const tag = (btn.dataset.filterTag ?? "").trim();
 
+    // CLEAR
     if (tag === "") {
       history.pushState({}, "", window.location.pathname);
       reset();
@@ -139,7 +151,10 @@
     highlightMenu(tag);
 
     const cat = getCategory(tag);
-    if (!cat) return;
+    if (!cat) {
+      els.list.innerHTML = `<p>Unknown category: ${escapeHtml(tag)}</p>`;
+      return;
+    }
 
     setStatus(`Loading all items in ${cat.label}…`);
     els.list.innerHTML = `<p>Loading…</p>`;
@@ -150,7 +165,10 @@
 
   function onSubfilterClick(e) {
     const btn = e.target.closest("button[data-conf-filter]");
-    if (!btn || state.activeTag !== "conferences") return;
+    if (!btn) return;
+
+    if (state.activeTag !== "conferences") return;
+    if (state.searchQuery) return; // no conf subfilters during global search
 
     const mode = btn.dataset.confFilter;
     if (mode !== "all" && mode !== "popular") return;
@@ -159,14 +177,37 @@
     render();
   }
 
+  async function onSearchInput() {
+    state.searchQuery = (els.search.value || "").trim().toLowerCase();
+
+    if (!state.searchQuery) {
+      // back to normal view
+      render();
+      return;
+    }
+
+    // global search requires loading everything once
+    setStatus("Loading all categories for search…");
+    els.subfilters.innerHTML = "";
+    await ensureAllLoaded();
+    render();
+  }
+
   // -------------------------
-  // Data loading
+  // Data
   // -------------------------
   async function ensureLoaded(tag) {
     if (state.cache.has(tag)) return;
 
     const cat = getCategory(tag);
-    const res = await fetch(new URL(DATA_BASE + cat.file, location.href), { cache: "no-store" });
+    if (!cat) {
+      state.cache.set(tag, []);
+      return;
+    }
+
+    const url = new URL(DATA_BASE + cat.file, window.location.href);
+    const res = await fetch(url, { cache: "no-store" });
+
     if (!res.ok) {
       state.cache.set(tag, []);
       return;
@@ -180,20 +221,40 @@
       return;
     }
 
+    if (!Array.isArray(parsed)) {
+      state.cache.set(tag, []);
+      return;
+    }
+
     state.cache.set(tag, parsed.map(o => normalizeItem(o, cat)));
+  }
+
+  async function ensureAllLoaded() {
+    if (state.allLoaded) return;
+
+    await Promise.all(CATEGORIES.map(c => ensureLoaded(c.tag)));
+    state.allLoaded = true;
   }
 
   function normalizeItem(raw, cat) {
     return {
       _id: String(raw?.id ?? ""),
       _category: cat.label,
-      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id),
-      website: coalesce(raw.website, raw.url, raw.link),
-      location: coalesce(raw.location, raw.city, raw.where),
-      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date),
-      frequency: coalesce(raw.frequency),
-      submissionDeadlines: coalesce(raw.submissionDeadlines, raw.deadline),
-      description: coalesce(raw.description, raw.notes),
+
+      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id) || "(Untitled)",
+      website: coalesce(raw.website, raw.url, raw.link) || "",
+      location: coalesce(raw.location, raw.city, raw.where) || "",
+
+      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date, raw.when, raw.schedule) || "",
+      frequency: coalesce(raw.frequency, raw.cadence) || "",
+      submissionDeadlines: coalesce(
+        raw.submissionDeadlines,
+        raw.submissionDeadline,
+        raw.deadlines,
+        raw.deadline,
+        raw.applicationDeadline
+      ) || "",
+      description: coalesce(raw.description, raw.details, raw.notes, raw.summary) || "",
     };
   }
 
@@ -201,34 +262,50 @@
   // Rendering
   // -------------------------
   function render() {
-if (!state.activeTag && !state.searchQuery) return;
+    const searching = !!state.searchQuery;
+
+    // If not searching and no category selected, keep the prompt.
+    if (!searching && !state.activeTag) return;
 
     let items = [];
 
-    if (state.searchQuery) {
+    if (searching) {
+      // global search across all cached categories
       for (const arr of state.cache.values()) items.push(...arr);
-    } else {
-      items = state.cache.get(state.activeTag) || [];
-    }
 
-    if (state.searchQuery) {
       const q = state.searchQuery;
-      items = items.filter(i =>
-        Object.values(i).join(" ").toLowerCase().includes(q)
-      );
-      setStatus(`Search results (${items.length})`);
+      items = items.filter(item => {
+        const haystack = [
+          item.title,
+          item.description,
+          item.location,
+          item.dates,
+          item.frequency,
+          item.submissionDeadlines,
+          item._category,
+        ].join(" ").toLowerCase();
+        return haystack.includes(q);
+      });
+
       els.subfilters.innerHTML = "";
+      setStatus(`Search results (${items.length})`);
     } else {
       const cat = getCategory(state.activeTag);
+      items = state.cache.get(state.activeTag) || [];
+
       if (state.activeTag === "conferences") {
         renderConferenceControls();
+
         if (state.confMode === "popular") {
           items = items.filter(i => POPULAR_ID_SET.has(i._id));
+          setStatus(`Loaded ${items.length} items in Popular Conferences.`);
+        } else {
+          setStatus(`Loaded ${items.length} items in ${cat.label}.`);
         }
       } else {
         els.subfilters.innerHTML = "";
+        setStatus(`Loaded ${items.length} items in ${cat.label}.`);
       }
-      setStatus(`Loaded ${items.length} items in ${cat.label}.`);
     }
 
     els.list.innerHTML = items.length
@@ -237,22 +314,31 @@ if (!state.activeTag && !state.searchQuery) return;
   }
 
   function renderConferenceControls() {
+    const allActive = state.confMode === "all";
+    const popActive = state.confMode === "popular";
+
     els.subfilters.innerHTML = `
       <div style="margin:8px 0;">
-        <button data-conf-filter="all">All Conferences</button>
-        <button data-conf-filter="popular">Popular Conferences</button>
+        <button type="button" data-conf-filter="all" aria-pressed="${allActive ? "true" : "false"}">All Conferences</button>
+        <button type="button" data-conf-filter="popular" aria-pressed="${popActive ? "true" : "false"}">Popular Conferences</button>
       </div>
     `;
   }
 
   function renderCard(item) {
+    const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
+    const catLine = state.searchQuery ? `<p><strong>Category:</strong> ${escapeHtml(item._category)}</p>` : "";
+
     return `
-      <article class="calendar-card" id="${escapeAttr(item._id)}">
+      <article class="calendar-card"${idAttr}>
         <h3>${escapeHtml(item.title)}</h3>
+        ${catLine}
+        ${item.frequency ? `<p><strong>Frequency:</strong> ${escapeHtml(item.frequency)}</p>` : ""}
         ${item.dates ? `<p><strong>Dates:</strong> ${escapeHtml(item.dates)}</p>` : ""}
         ${item.location ? `<p><strong>Location:</strong> ${escapeHtml(item.location)}</p>` : ""}
-        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank">Website</a></p>` : ""}
-        ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${escapeHtml(item.submissionDeadlines)}</p>` : ""}
+        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank" rel="noopener">Website</a></p>` : ""}
+        ${item.description ? `<p>${nl2br(escapeHtml(item.description))}</p>` : ""}
       </article>
     `;
   }
@@ -261,15 +347,21 @@ if (!state.activeTag && !state.searchQuery) return;
   // Helpers
   // -------------------------
   function getCategory(tag) {
-    return CATEGORIES.find(c => c.tag === tag);
+    return CATEGORIES.find(c => c.tag === tag) || null;
   }
 
   function reset() {
     state.activeTag = null;
-    state.searchQuery = "";
+    state.confMode = "all";
+    highlightMenu("");
     els.subfilters.innerHTML = "";
-    els.list.innerHTML = `<p>Select a category above to view items.</p>`;
+    els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
     setStatus("Cleared selection.");
+  }
+
+  function clearSearch() {
+    state.searchQuery = "";
+    if (els.search) els.search.value = "";
   }
 
   function setStatus(msg) {
@@ -277,23 +369,36 @@ if (!state.activeTag && !state.searchQuery) return;
   }
 
   function highlightMenu(tag) {
-    els.menu.querySelectorAll("button").forEach(b =>
-      b.classList.toggle("active", b.dataset.filterTag === tag)
-    );
+    els.menu.querySelectorAll("button[data-filter-tag]").forEach(b => {
+      const bTag = (b.dataset.filterTag ?? "").trim();
+      b.classList.toggle("active", bTag === tag);
+      b.setAttribute("aria-pressed", bTag === tag ? "true" : "false");
+    });
   }
 
-  function coalesce(...v) {
-    return v.find(x => x && String(x).trim()) || "";
+  function coalesce(...vals) {
+    for (const v of vals) {
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s) return s;
+    }
+    return "";
   }
 
   function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c =>
-      ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[c])
-    );
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
   function escapeAttr(s) {
     return String(s).replaceAll('"', "%22");
   }
-})();
 
+  function nl2br(s) {
+    return String(s).replaceAll("\n", "<br>");
+  }
+})();
