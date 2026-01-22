@@ -61,6 +61,7 @@
   const state = {
     activeTag: null,
     confMode: "all", // "all" | "popular"
+    activePopularLabel: null, 
     cache: new Map(),
     searchQuery: "",
     allLoaded: false,
@@ -73,6 +74,9 @@
 
   els.menu.addEventListener("click", onMenuClick);
   els.subfilters.addEventListener("click", onSubfilterClick);
+ document.addEventListener("click", onPopularConferenceClick);
+
+ 
 
   if (els.search) {
     els.search.addEventListener("input", onSearchInput);
@@ -122,9 +126,19 @@
     if (mode !== "all" && mode !== "popular") return;
 
     state.confMode = mode;
+   state.activePopularLabel = null;
+
     render();
   }
 
+function onPopularConferenceClick(e) {
+  const btn = e.target.closest("button[data-pop-conf]");
+  if (!btn) return;
+
+  state.activePopularLabel = btn.dataset.popConf;
+  render();
+}
+   
   async function onSearchInput() {
     state.searchQuery = (els.search.value || "").trim().toLowerCase();
     if (!state.searchQuery) {
@@ -193,11 +207,25 @@
       if (state.activeTag === "conferences") {
         renderConferenceControls();
 
-        if (state.confMode === "popular") {
-          items = items.filter(i => POPULAR_ID_SET.has(i._id));
-          renderPopularConferenceButtons();
-          setStatus(`Loaded ${items.length} items in Popular Conferences.`);
-        } else {
+       if (state.confMode === "popular") {
+  items = items.filter(i => POPULAR_ID_SET.has(i._id));
+
+  if (state.activePopularLabel) {
+    const match = POPULAR_CONFERENCES.find(
+      p => p.label === state.activePopularLabel
+    );
+    if (match) {
+      items = items.filter(i => i._id === match.id);
+    }
+  }
+
+  renderPopularConferenceButtons();
+  setStatus(
+    state.activePopularLabel
+      ? `Loaded 1 item (${state.activePopularLabel}).`
+      : `Loaded ${items.length} items in Popular Conferences.`
+  );
+} else {
           hidePopularConferenceButtons();
           setStatus(`Loaded ${items.length} items in ${cat.label}.`);
         }
@@ -237,6 +265,7 @@
       .forEach(label => {
         const b = document.createElement("button");
         b.textContent = label;
+        b.dataset.popConf = label; 
         b.className = "calendar-subfilter";
         b.type = "button";
         c.appendChild(b);
@@ -272,10 +301,12 @@
   function reset() {
     state.activeTag = null;
     state.confMode = "all";
+     state.activePopularLabel = null;
     hidePopularConferenceButtons();
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
     setStatus("Cleared selection.");
+
   }
 
   function clearSearch() {
@@ -293,3 +324,4 @@
     );
   }
 })();
+
