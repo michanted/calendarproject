@@ -1,9 +1,9 @@
-/* calendar.js
+LIKE THIS? /* calendar.js
    CVNet Community Calendar — clean, minimal, working
-   (Category-aware subfilters + search)
+   (Conferences subfilters + full-page DOS-style search)
 
    Required in HTML:
-   - #category-menu
+   - #category-menu (buttons with data-filter-tag; CLEAR has data-filter-tag="")
    - #calendar-status
    - #calendar-subfilters
    - #calendar-list
@@ -13,9 +13,6 @@
 (() => {
   const DATA_BASE = "./";
 
-  // -------------------------
-  // Categories
-  // -------------------------
   const CATEGORIES = [
     { tag: "conferences", label: "Conferences", file: "conferences.json" },
     { tag: "online", label: "Online Seminars/Clubs", file: "online_seminars_clubs.json" },
@@ -27,64 +24,140 @@
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
-  // -------------------------
-  // Descriptions
-  // -------------------------
-  const CATEGORY_DESCRIPTIONS = {
-    conferences: `Major academic and industry meetings in vision science and related fields.`,
-    online: `Recurring journal clubs, seminars, and online workshops.`,
-    "special-issue": `Special and feature issues across relevant journals.`,
-    education: `Courses, workshops, and summer schools.`,
-    "grad-program": `Masters and PhD programs.`,
-    jobs: `Academic and research positions.`,
-    funding: `Fellowships, grants, and awards.`,
-    competitions: `Community competitions and prizes.`,
-  };
+const CATEGORY_DESCRIPTIONS = {
+  conferences: `
+Major academic and industry meetings in vision science, neuroscience, imaging, color, and related fields.
+Includes key dates for abstracts, registration, and workshops.
+Conferences are listed in chronological order by event date (not by submission deadlines).
+`,
 
-  // -------------------------
-  // Schemas
-  // -------------------------
-  const CATEGORY_SCHEMAS = {
-    conferences: ["title", "frequency", "dates", "location", "submissionDeadlines", "website"],
-    online: ["title", "frequency", "dates", "description", "website"],
-    "special-issue": ["title", "journalType", "openAccessStatus", "website"],
-    education: ["title", "programType", "dates", "location", "website"],
-    "grad-program": ["title", "degreeType", "institution", "location", "website"],
-    jobs: ["title", "roleType", "institution", "location", "website"],
-    funding: ["title", "fundingType", "dates", "eligibility", "website"],
-    competitions: ["title", "focusArea", "frequency", "eligibility", "website"],
-  };
+  online: `
+Recurring journal clubs and seminar series open to the community, plus selected online webinars and workshops.
+`,
 
-  // -------------------------
-  // Subfilters
-  // -------------------------
-  const CATEGORY_SUBFILTERS = {
-    online: [
-      { label: "All", value: "" },
-      { label: "Journal Clubs", value: "journal club" },
-      { label: "Seminar Series", value: "seminar series" },
-      { label: "Workshops / Webinars", value: "workshop" },
-    ],
-    "special-issue": [
-      { label: "All", value: "" },
-      { label: "Open", value: "open" },
-      { label: "Hybrid", value: "hybrid" },
-    ],
-  };
+  "special-issue": `
+Click here for a comprehensive list of relevant journals, complete with website information, type of journal, open access status, and more.
 
-  // -------------------------
-  // Conferences
-  // -------------------------
+For special or feature issues, we try to keep up to date with the following journals:
+Attention, Perception & Performance; Color Research and Application; IOVS; JOSA A/B; JOV;
+Multisensory Perception; Perception; and Vision Research.
+
+We also provide permanent links for some journals’ special or feature issues.
+If you have suggestions for journals or calls we should track, or would like to share information
+about a special issue, please contact us.
+`,
+
+  education: `
+Workshops, classes, and summer schools to build skills in perception, imaging, analysis, and research methods.
+`,
+
+  "grad-program": `
+Doctoral and Masters opportunities.
+Includes dedicated PhD and MSc programs submitted by members.
+`,
+
+  jobs: `
+PhD, postdoc, RA, and faculty positions in vision, perception, neuroscience, imaging, and allied areas.
+`,
+
+  funding: `
+Travel awards, fellowships, and research support opportunities with typical timelines and eligibility notes.
+`,
+
+  competitions: `
+Community contests and prizes highlighting creativity and achievement
+(e.g., Illusion of the Year).
+`,
+};
+
+const CATEGORY_SCHEMAS = {
+  conferences: [
+    "title",
+    "frequency",
+    "dates",
+    "location",
+    "submissionDeadlines",
+    "website",
+  ],
+
+  online: [
+    "title",
+    "frequency",
+    "dates",
+    "description",
+    "website",
+  ],
+
+  "special-issue": [
+    "title",              // journal name
+    "journalType",
+    "openAccessStatus",
+    "website",
+  ],
+
+  education: [
+    "title",
+    "programType",
+    "dates",
+    "location",
+    "website",
+  ],
+
+  "grad-program": [
+    "title",
+    "degreeType",
+    "institution",
+    "location",
+    "website",
+  ],
+
+  jobs: [
+    "title",
+    "roleType",
+    "institution",
+    "location",
+    "website",
+  ],
+
+  funding: [
+    "title",
+    "fundingType",
+    "dates",
+    "eligibility",
+    "website",
+  ],
+
+  competitions: [
+    "title",
+    "focusArea",
+    "frequency",
+    "eligibility",
+    "website",
+  ],
+};
+
+   
   const POPULAR_CONFERENCES = [
-    { label: "VSS", id: "vision-sciences-society-vss-2026" },
-    { label: "SfN", id: "society-for-neuroscience-sfn-2026" },
+    { label: "APA", id: "american-psychological-association-apa-2026" },
+    { label: "APCV", id: "epc-apcv-2026" },
+    { label: "APS", id: "association-for-psychological-science-aps-2026" },
+    { label: "ARVO", id: "association-for-research-in-vision-and-ophthalmology-arvo-2026" },
+    { label: "AVA", id: "applied-vision-association-ava-2026" },
+    { label: "BAVRD", id: "bay-area-vision-research-day-bavrd-2026" },
     { label: "ECVP", id: "european-conference-on-visual-perception-ecvp-2026" },
+    { label: "Gruppo del Colore", id: "gruppo-del-colore-annual-meeting-2026" },
+    { label: "HVEI", id: "human-vision-and-electronic-imaging-hvei-2026" },
+    { label: "ICVS", id: "international-colour-vision-society-icvs-2026" },
+    { label: "MODVIS", id: "models-in-vision-science-modvis" },
+    { label: "Optica Fall Vision", id: "optica-fall-vision-meeting-2026" },
+    { label: "Psychonomics", id: "psychonomic-society-annual-meeting-2026" },
+    { label: "SfN", id: "society-for-neuroscience-sfn-2026" },
+    { label: "VSAC", id: "visual-science-art-conference-vsac-2026" },
+    { label: "VSS", id: "vision-sciences-society-vss-2026" },
   ];
+
   const POPULAR_ID_SET = new Set(POPULAR_CONFERENCES.map(p => p.id));
 
-  // -------------------------
-  // Elements
-  // -------------------------
   const els = {
     menu: document.getElementById("category-menu"),
     list: document.getElementById("calendar-list"),
@@ -99,68 +172,109 @@
     return;
   }
 
-  // -------------------------
-  // State
-  // -------------------------
   const state = {
     activeTag: null,
-    activeSubfilter: "",
-    confMode: "all",
+    confMode: "all", // "all" | "popular"
+    activePopularLabel: null, 
+    activeSubfilter: "",            // ✅ FIX 1
     cache: new Map(),
     searchQuery: "",
     allLoaded: false,
   };
 
-  // -------------------------
-  // Init
-  // -------------------------
+  // Init UI
   els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
   els.subfilters.innerHTML = "";
+  setStatus("");
 
   els.menu.addEventListener("click", onMenuClick);
   els.subfilters.addEventListener("click", onSubfilterClick);
-  if (els.search) els.search.addEventListener("input", onSearchInput);
+  els.subfilters.addEventListener("click", onCategorySubfilterClick);
+  document.addEventListener("click", onPopularConferenceClick);
+
+  if (els.search) {
+    els.search.addEventListener("input", onSearchInput);
+  }
 
   // -------------------------
   // Handlers
   // -------------------------
   async function onMenuClick(e) {
     const btn = e.target.closest("button[data-filter-tag]");
-    if (!btn) return;
-
+    if (!btn) 
+       return;
     state.activeSubfilter = "";
-    state.searchQuery = "";
 
-    const tag = (btn.dataset.filterTag || "").trim();
-    if (!tag) return reset();
+    clearSearch();
+
+    const tag = (btn.dataset.filterTag ?? "").trim();
+
+    if (tag === "") {
+      history.pushState({}, "", window.location.pathname);
+      reset();
+      return;
+    }
 
     state.activeTag = tag;
     state.confMode = "all";
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", tag);
+    history.pushState({}, "", url);
+
+    highlightMenu(tag);
+
+    setStatus(`Loading…`);
+    els.list.innerHTML = `<p>Loading…</p>`;
 
     await ensureLoaded(tag);
     render();
   }
 
   function onSubfilterClick(e) {
-    const btn = e.target.closest("button[data-subfilter],button[data-conf-filter]");
+    const btn = e.target.closest("button[data-conf-filter]");
     if (!btn) return;
 
-    if (btn.dataset.confFilter) {
-      state.confMode = btn.dataset.confFilter;
-    } else {
-      state.activeSubfilter = btn.dataset.subfilter;
-    }
+    if (state.activeTag !== "conferences") return;
+    if (state.searchQuery) return;
+
+    const mode = btn.dataset.confFilter;
+    if (mode !== "all" && mode !== "popular") return;
+
+    state.confMode = mode;
+   state.activePopularLabel = null;
 
     render();
   }
 
-  async function onSearchInput() {
-    state.searchQuery = els.search.value.trim().toLowerCase();
-    if (!state.searchQuery) return render();
+function onPopularConferenceClick(e) {
+  const btn = e.target.closest("button[data-pop-conf]");
+  if (!btn) return;
 
+  state.activePopularLabel = btn.dataset.popConf;
+  render();
+}
+   
+  async function onSearchInput() {
+    state.searchQuery = (els.search.value || "").trim().toLowerCase();
+    if (!state.searchQuery) {
+      render();
+      return;
+    }
+
+    setStatus("Loading all categories for search…");
+    els.subfilters.innerHTML = "";
     await ensureAllLoaded();
     render();
   }
+
+function onCategorySubfilterClick(e) {
+  const btn = e.target.closest("button[data-subfilter]");
+  if (!btn) return;
+
+  state.activeSubfilter = btn.dataset.subfilter;
+  render();
+}
 
   // -------------------------
   // Data
@@ -168,11 +282,10 @@
   async function ensureLoaded(tag) {
     if (state.cache.has(tag)) return;
 
-    const cat = CATEGORIES.find(c => c.tag === tag);
-    const res = await fetch(DATA_BASE + cat.file, { cache: "no-store" });
+    const cat = getCategory(tag);
+    const res = await fetch(new URL(DATA_BASE + cat.file, location), { cache: "no-store" });
     const data = await res.json();
-
-    state.cache.set(tag, data.map(d => ({ ...d, _id: d.id || "" })));
+    state.cache.set(tag, data.map(o => normalizeItem(o, cat)));
   }
 
   async function ensureAllLoaded() {
@@ -181,51 +294,104 @@
     state.allLoaded = true;
   }
 
+  function normalizeItem(raw, cat) {
+    return {
+      _id: String(raw?.id ?? ""),
+      _category: cat.label,
+      title: raw.title || raw.name || raw.id || "(Untitled)",
+      description: raw.description || "",
+      website: raw.website || raw.url || "",
+      location: raw.location || "",
+      dates: raw.dates || "",
+      frequency: raw.frequency || "",
+      submissionDeadlines: raw.submissionDeadlines || "",
+    };
+  }
+
   // -------------------------
-  // Render
+  // Rendering
   // -------------------------
   function render() {
+    if (!state.activeTag && !state.searchQuery) return;
+
     let items = [];
 
     if (state.searchQuery) {
-      for (const v of state.cache.values()) items.push(...v);
+      for (const arr of state.cache.values()) items.push(...arr);
+      const q = state.searchQuery;
       items = items.filter(i =>
-        JSON.stringify(i).toLowerCase().includes(state.searchQuery)
+        Object.values(i).join(" ").toLowerCase().includes(q)
       );
       els.subfilters.innerHTML = "";
       setStatus(`Search results (${items.length})`);
     } else {
+      const cat = getCategory(state.activeTag);
       items = state.cache.get(state.activeTag) || [];
+      // Online Seminars subfilters
+if (state.activeTag === "online" && state.activeSubfilter) {
+  const q = state.activeSubfilter;
+  items = items.filter(i =>
+    `${i.title} ${i.description}`.toLowerCase().includes(q)
+  );
+}
 
-      if (state.activeTag === "online" && state.activeSubfilter) {
-        items = items.filter(i =>
-          `${i.title} ${i.description}`.toLowerCase().includes(state.activeSubfilter)
-        );
-      }
+// Special / Feature Issues subfilters
+if (state.activeTag === "special-issue" && state.activeSubfilter) {
+  const f = state.activeSubfilter;
 
-      if (state.activeTag === "special-issue" && state.activeSubfilter) {
-        items = items.filter(i =>
-          (i.openAccessStatus || "").toLowerCase() === state.activeSubfilter
-        );
-      }
+  if (f === "popular") {
+    items = items.filter(i => i.isPopular === true);
+  } else if (f === "open" || f === "hybrid") {
+    items = items.filter(i => i.openAccessStatus === f);
+  }
+}
+
 
       if (state.activeTag === "conferences") {
         renderConferenceControls();
-        if (state.confMode === "popular") {
-          items = items.filter(i => POPULAR_ID_SET.has(i._id));
-        }
+
+       if (state.confMode === "popular") {
+  items = items.filter(i => POPULAR_ID_SET.has(i._id));
+
+  if (state.activePopularLabel) {
+    const match = POPULAR_CONFERENCES.find(
+      p => p.label === state.activePopularLabel
+    );
+    if (match) {
+      items = items.filter(i => i._id === match.id);
+    }
+  }
+
+  renderPopularConferenceButtons();
+  setStatus(
+    state.activePopularLabel
+      ? `Loaded 1 item (${state.activePopularLabel}).`
+      : `Loaded ${items.length} items in Popular Conferences.`
+  );
+} else {
+  hidePopularConferenceButtons();
+  renderCategorySubfilters();
+  setStatus(`Loaded ${items.length} items in ${cat.label}.`);
+}
       } else {
-        renderCategorySubfilters();
+        hidePopularConferenceButtons();
+        els.subfilters.innerHTML = "";
+        if (state.activeTag === "online") renderCategorySubfilters();
+        setStatus(`Loaded ${items.length} items in ${cat.label}.`);
       }
-
-      setStatus(`Loaded ${items.length} items.`);
     }
 
-    if (els.description) {
-      els.description.textContent = CATEGORY_DESCRIPTIONS[state.activeTag] || "";
-      els.description.style.display = state.activeTag ? "block" : "none";
-    }
-
+if (els.description) {
+  const text = CATEGORY_DESCRIPTIONS[state.activeTag];
+  if (text) {
+    els.description.textContent = text.trim();
+    els.description.style.display = "block";
+  } else {
+    els.description.style.display = "none";
+    els.description.textContent = "";
+  }
+}
+     
     els.list.innerHTML = items.length
       ? items.map(renderCard).join("")
       : `<p>No items found.</p>`;
@@ -233,53 +399,163 @@
 
   function renderConferenceControls() {
     els.subfilters.innerHTML = `
-      <div class="category-menu">
-        <button data-conf-filter="all" class="${state.confMode === "all" ? "active" : ""}">All</button>
-        <button data-conf-filter="popular" class="${state.confMode === "popular" ? "active" : ""}">Popular</button>
+      <div class="category-menu" style="margin:8px 0;">
+        <button data-conf-filter="all" class="${state.confMode === "all" ? "active" : ""}">
+          All Conferences
+        </button>
+        <button data-conf-filter="popular" class="${state.confMode === "popular" ? "active" : ""}">
+          Popular Conferences
+        </button>
       </div>
     `;
   }
 
+  function renderPopularConferenceButtons() {
+    const c = document.getElementById("popular-conference-filters");
+    if (!c) return;
+    c.innerHTML = "";
+
+    POPULAR_CONFERENCES
+      .map(p => p.label)
+      .sort()
+      .forEach(label => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.dataset.popConf = label; 
+        b.className = "calendar-subfilter";
+        b.type = "button";
+        c.appendChild(b);
+      });
+
+    c.style.display = "block";
+  }
+
+  function hidePopularConferenceButtons() {
+    const c = document.getElementById("popular-conference-filters");
+    if (!c) return;
+    c.style.display = "none";
+    c.innerHTML = "";
+  }
+
+  // ✅ FIX 2: moved OUT of renderCard so render() can call it
   function renderCategorySubfilters() {
     const filters = CATEGORY_SUBFILTERS[state.activeTag];
-    if (!filters) {
-      els.subfilters.innerHTML = "";
-      return;
-    }
+    if (!filters) return;
 
     els.subfilters.innerHTML = `
-      <div class="category-menu">
-        ${filters.map(f =>
-          `<button data-subfilter="${f.value}" class="${state.activeSubfilter === f.value ? "active" : ""}">
-            ${f.label}
-          </button>`
-        ).join("")}
+      <div class="category-menu" style="margin:8px 0;">
+        ${filters
+          .map(
+            f => `
+            <button
+              data-subfilter="${f.value}"
+              class="${state.activeSubfilter === f.value ? "active" : ""}"
+            >
+              ${f.label}
+            </button>
+          `
+          )
+          .join("")}
       </div>
     `;
   }
 
   function renderCard(item) {
-    return `
-      <article class="calendar-card">
-        <h3>${item.title}</h3>
-        ${item.website ? `<p><a href="${item.website}" target="_blank">Website</a></p>` : ""}
-      </article>
-    `;
-  }
+  const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
+
+  const fieldLabels = {
+    frequency: "Frequency",
+    dates: "Dates",
+    location: "Location",
+    submissionDeadlines: "Submission deadlines",
+    journalType: "Journal type",
+    openAccessStatus: "Open access",
+    programType: "Program type",
+    degreeType: "Degree type",
+    institution: "Institution",
+    roleType: "Role type",
+    fundingType: "Funding type",
+    focusArea: "Focus area",
+    eligibility: "Eligibility",
+  };
+
+  const rows = schema
+    .filter(field => field !== "title")
+    .map(field => {
+      const value = item[field];
+      if (!value) return "";
+
+      if (field === "website") {
+        return `<p><a href="${value}" target="_blank" rel="noopener">Website</a></p>`;
+      }
+
+      if (field === "description" || field === "eligibility") {
+        return `<p>${value}</p>`;
+      }
+
+      const label = fieldLabels[field] || field;
+      return `<p><strong>${label}:</strong> ${value}</p>`;
+    })
+    .join("");
+
+  return `
+    <article class="calendar-card">
+      <h3>${item.title}</h3>
+      ${rows}
+    </article>
+  `;
+}
+
+const CATEGORY_SUBFILTERS = {
+  online: [
+    { label: "All", value: "" },
+    { label: "Journal Clubs", value: "journal club" },
+    { label: "Seminar Series", value: "seminar series" },
+    { label: "Workshops/Webinars", value: "workshop" },
+  ],
+
+  "special-issue": [
+    { label: "All", value: "" },
+    { label: "Popular Journals", value: "popular" },
+    { label: "Open", value: "open" },
+    { label: "Hybrid", value: "hybrid" },
+  ],
+};
 
   // -------------------------
   // Helpers
   // -------------------------
+  function getCategory(tag) {
+    return CATEGORIES.find(c => c.tag === tag);
+  }
+
   function reset() {
     state.activeTag = null;
-    state.activeSubfilter = "";
     state.confMode = "all";
+     state.activePopularLabel = null;
+     state.activeSubfilter = "";
+    hidePopularConferenceButtons();
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
-    setStatus("");
+    setStatus("Cleared selection.");
+if (els.description) {
+  els.description.style.display = "none";
+  els.description.textContent = "";
+}
+  }
+
+  function clearSearch() {
+    state.searchQuery = "";
+    if (els.search) els.search.value = "";
   }
 
   function setStatus(msg) {
     els.status.textContent = msg;
+  }
+
+  function highlightMenu(tag) {
+    els.menu.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("active", b.dataset.filterTag === tag)
+    );
   }
 })();
