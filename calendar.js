@@ -24,6 +24,54 @@
     { tag: "competitions", label: "Competitions", file: "competitions.json" },
   ];
 
+const CATEGORY_DESCRIPTIONS = {
+  conferences: `
+Major academic and industry meetings in vision science, neuroscience, imaging, color, and related fields.
+Includes key dates for abstracts, registration, and workshops.
+Conferences are listed in chronological order by event date (not by submission deadlines).
+`,
+
+  online: `
+Recurring journal clubs and seminar series open to the community, plus selected online webinars and workshops.
+`,
+
+  "special-issue": `
+Click here for a comprehensive list of relevant journals, complete with website information, type of journal, open access status, and more.
+
+For special or feature issues, we try to keep up to date with the following journals:
+Attention, Perception & Performance; Color Research and Application; IOVS; JOSA A/B; JOV;
+Multisensory Perception; Perception; and Vision Research.
+
+We also provide permanent links for some journals’ special or feature issues.
+If you have suggestions for journals or calls we should track, or would like to share information
+about a special issue, please contact us.
+`,
+
+  education: `
+Workshops, classes, and summer schools to build skills in perception, imaging, analysis, and research methods.
+`,
+
+  "grad-program": `
+Doctoral and Masters opportunities.
+Includes dedicated PhD and MSc programs submitted by members.
+`,
+
+  jobs: `
+PhD, postdoc, RA, and faculty positions in vision, perception, neuroscience, imaging, and allied areas.
+`,
+
+  funding: `
+Travel awards, fellowships, and research support opportunities with typical timelines and eligibility notes.
+`,
+
+  competitions: `
+Community contests and prizes highlighting creativity and achievement
+(e.g., Illusion of the Year).
+`,
+};
+
+
+   
   const POPULAR_CONFERENCES = [
     { label: "APA", id: "american-psychological-association-apa-2026" },
     { label: "APCV", id: "epc-apcv-2026" },
@@ -50,6 +98,7 @@
     list: document.getElementById("calendar-list"),
     status: document.getElementById("calendar-status"),
     subfilters: document.getElementById("calendar-subfilters"),
+    description: document.getElementById("category-description"),
     search: document.getElementById("calendar-search"),
   };
 
@@ -236,6 +285,17 @@ function onPopularConferenceClick(e) {
       }
     }
 
+if (els.description) {
+  const text = CATEGORY_DESCRIPTIONS[state.activeTag];
+  if (text) {
+    els.description.textContent = text.trim();
+    els.description.style.display = "block";
+  } else {
+    els.description.style.display = "none";
+    els.description.textContent = "";
+  }
+}
+     
     els.list.innerHTML = items.length
       ? items.map(renderCard).join("")
       : `<p>No items found.</p>`;
@@ -320,7 +380,10 @@ function onPopularConferenceClick(e) {
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
     setStatus("Cleared selection.");
-
+if (els.description) {
+  els.description.style.display = "none";
+  els.description.textContent = "";
+}
   }
 
   function clearSearch() {
@@ -338,5 +401,6 @@ function onPopularConferenceClick(e) {
     );
   }
 })();
+
 
 
