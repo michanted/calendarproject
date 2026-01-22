@@ -1,4 +1,4 @@
-LIKE THIS? /* calendar.js
+/* calendar.js
    CVNet Community Calendar — clean, minimal, working
    (Conferences subfilters + full-page DOS-style search)
 
@@ -559,3 +559,4 @@ if (els.description) {
     );
   }
 })();
+
