@@ -61,7 +61,7 @@
   const state = {
     activeTag: null,
     confMode: "all", // "all" | "popular"
-    cache: new Map(), // tag -> normalized array
+    cache: new Map(),
     searchQuery: "",
     allLoaded: false,
   };
@@ -78,50 +78,6 @@
     els.search.addEventListener("input", onSearchInput);
   }
 
-  // Initial load from URL (?section=...)
-  (async () => {
-    const section = new URLSearchParams(window.location.search).get("section");
-    if (!section) return;
-
-    const cat = getCategory(section);
-    if (!cat) return;
-
-    state.activeTag = section;
-    state.confMode = "all";
-    highlightMenu(section);
-
-    setStatus(`Loading all items in ${cat.label}…`);
-    els.list.innerHTML = `<p>Loading…</p>`;
-
-    await ensureLoaded(section);
-    render();
-  })();
-
-  // Back/Forward support
-  window.addEventListener("popstate", async () => {
-    // clear search on navigation changes (keeps behavior sane)
-    clearSearch();
-
-    const section = new URLSearchParams(window.location.search).get("section");
-    if (!section) {
-      reset();
-      return;
-    }
-
-    const cat = getCategory(section);
-    if (!cat) return;
-
-    state.activeTag = section;
-    state.confMode = "all";
-    highlightMenu(section);
-
-    setStatus(`Loading all items in ${cat.label}…`);
-    els.list.innerHTML = `<p>Loading…</p>`;
-
-    await ensureLoaded(section);
-    render();
-  });
-
   // -------------------------
   // Handlers
   // -------------------------
@@ -129,12 +85,10 @@
     const btn = e.target.closest("button[data-filter-tag]");
     if (!btn) return;
 
-    // selecting a category = exit search mode
     clearSearch();
 
     const tag = (btn.dataset.filterTag ?? "").trim();
 
-    // CLEAR
     if (tag === "") {
       history.pushState({}, "", window.location.pathname);
       reset();
@@ -150,13 +104,7 @@
 
     highlightMenu(tag);
 
-    const cat = getCategory(tag);
-    if (!cat) {
-      els.list.innerHTML = `<p>Unknown category: ${escapeHtml(tag)}</p>`;
-      return;
-    }
-
-    setStatus(`Loading all items in ${cat.label}…`);
+    setStatus(`Loading…`);
     els.list.innerHTML = `<p>Loading…</p>`;
 
     await ensureLoaded(tag);
@@ -168,7 +116,7 @@
     if (!btn) return;
 
     if (state.activeTag !== "conferences") return;
-    if (state.searchQuery) return; // no conf subfilters during global search
+    if (state.searchQuery) return;
 
     const mode = btn.dataset.confFilter;
     if (mode !== "all" && mode !== "popular") return;
@@ -179,14 +127,11 @@
 
   async function onSearchInput() {
     state.searchQuery = (els.search.value || "").trim().toLowerCase();
-
     if (!state.searchQuery) {
-      // back to normal view
       render();
       return;
     }
 
-    // global search requires loading everything once
     setStatus("Loading all categories for search…");
     els.subfilters.innerHTML = "";
     await ensureAllLoaded();
@@ -200,38 +145,13 @@
     if (state.cache.has(tag)) return;
 
     const cat = getCategory(tag);
-    if (!cat) {
-      state.cache.set(tag, []);
-      return;
-    }
-
-    const url = new URL(DATA_BASE + cat.file, window.location.href);
-    const res = await fetch(url, { cache: "no-store" });
-
-    if (!res.ok) {
-      state.cache.set(tag, []);
-      return;
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(await res.text());
-    } catch {
-      state.cache.set(tag, []);
-      return;
-    }
-
-    if (!Array.isArray(parsed)) {
-      state.cache.set(tag, []);
-      return;
-    }
-
-    state.cache.set(tag, parsed.map(o => normalizeItem(o, cat)));
+    const res = await fetch(new URL(DATA_BASE + cat.file, location), { cache: "no-store" });
+    const data = await res.json();
+    state.cache.set(tag, data.map(o => normalizeItem(o, cat)));
   }
 
   async function ensureAllLoaded() {
     if (state.allLoaded) return;
-
     await Promise.all(CATEGORIES.map(c => ensureLoaded(c.tag)));
     state.allLoaded = true;
   }
@@ -240,21 +160,13 @@
     return {
       _id: String(raw?.id ?? ""),
       _category: cat.label,
-
-      title: coalesce(raw.title, raw.name, raw.program, raw.event, raw.id) || "(Untitled)",
-      website: coalesce(raw.website, raw.url, raw.link) || "",
-      location: coalesce(raw.location, raw.city, raw.where) || "",
-
-      dates: coalesce(raw.dates, raw.date, raw.startDate, raw.start_date, raw.when, raw.schedule) || "",
-      frequency: coalesce(raw.frequency, raw.cadence) || "",
-      submissionDeadlines: coalesce(
-        raw.submissionDeadlines,
-        raw.submissionDeadline,
-        raw.deadlines,
-        raw.deadline,
-        raw.applicationDeadline
-      ) || "",
-      description: coalesce(raw.description, raw.details, raw.notes, raw.summary) || "",
+      title: raw.title || raw.name || raw.id || "(Untitled)",
+      description: raw.description || "",
+      website: raw.website || raw.url || "",
+      location: raw.location || "",
+      dates: raw.dates || "",
+      frequency: raw.frequency || "",
+      submissionDeadlines: raw.submissionDeadlines || "",
     };
   }
 
@@ -262,31 +174,16 @@
   // Rendering
   // -------------------------
   function render() {
-    const searching = !!state.searchQuery;
-
-    // If not searching and no category selected, keep the prompt.
-    if (!searching && !state.activeTag) return;
+    if (!state.activeTag && !state.searchQuery) return;
 
     let items = [];
 
-    if (searching) {
-      // global search across all cached categories
+    if (state.searchQuery) {
       for (const arr of state.cache.values()) items.push(...arr);
-
       const q = state.searchQuery;
-      items = items.filter(item => {
-        const haystack = [
-          item.title,
-          item.description,
-          item.location,
-          item.dates,
-          item.frequency,
-          item.submissionDeadlines,
-          item._category,
-        ].join(" ").toLowerCase();
-        return haystack.includes(q);
-      });
-
+      items = items.filter(i =>
+        Object.values(i).join(" ").toLowerCase().includes(q)
+      );
       els.subfilters.innerHTML = "";
       setStatus(`Search results (${items.length})`);
     } else {
@@ -298,11 +195,14 @@
 
         if (state.confMode === "popular") {
           items = items.filter(i => POPULAR_ID_SET.has(i._id));
+          renderPopularConferenceButtons();
           setStatus(`Loaded ${items.length} items in Popular Conferences.`);
         } else {
+          hidePopularConferenceButtons();
           setStatus(`Loaded ${items.length} items in ${cat.label}.`);
         }
       } else {
+        hidePopularConferenceButtons();
         els.subfilters.innerHTML = "";
         setStatus(`Loaded ${items.length} items in ${cat.label}.`);
       }
@@ -314,68 +214,50 @@
   }
 
   function renderConferenceControls() {
-  const allActive = state.confMode === "all";
-  const popActive = state.confMode === "popular";
+    els.subfilters.innerHTML = `
+      <div class="category-menu" style="margin:8px 0;">
+        <button data-conf-filter="all" class="${state.confMode === "all" ? "active" : ""}">
+          All Conferences
+        </button>
+        <button data-conf-filter="popular" class="${state.confMode === "popular" ? "active" : ""}">
+          Popular Conferences
+        </button>
+      </div>
+    `;
+  }
 
-  els.subfilters.innerHTML = `
-    <div class="category-menu" style="margin:8px 0;">
-      <button
-        type="button"
-        data-conf-filter="all"
-        class="${allActive ? "active" : ""}"
-        aria-pressed="${allActive}"
-      >
-        All Conferences
-      </button>
+  function renderPopularConferenceButtons() {
+    const c = document.getElementById("popular-conference-filters");
+    if (!c) return;
+    c.innerHTML = "";
 
-      <button
-        type="button"
-        data-conf-filter="popular"
-        class="${popActive ? "active" : ""}"
-        aria-pressed="${popActive}"
-      >
-        Popular Conferences
-      </button>
-    </div>
-  `;
-}
+    POPULAR_CONFERENCES
+      .map(p => p.label)
+      .sort()
+      .forEach(label => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.className = "calendar-subfilter";
+        b.type = "button";
+        c.appendChild(b);
+      });
 
-function renderPopularConferenceButtons() {
-  const container = document.getElementById("popular-conference-filters");
-  if (!container) return;
+    c.style.display = "block";
+  }
 
-  container.innerHTML = "";
+  function hidePopularConferenceButtons() {
+    const c = document.getElementById("popular-conference-filters");
+    if (!c) return;
+    c.style.display = "none";
+    c.innerHTML = "";
+  }
 
-  POPULAR_CONFERENCES
-    .map(p => p.label)
-    .sort()
-    .forEach(label => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = label;
-      btn.className = "calendar-subfilter";
-      btn.dataset.popConf = label;
-      container.appendChild(btn);
-    });
-
-  container.style.display = "block";
-}
-
-   
   function renderCard(item) {
-    const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
-    const catLine = state.searchQuery ? `<p><strong>Category:</strong> ${escapeHtml(item._category)}</p>` : "";
-
     return `
-      <article class="calendar-card"${idAttr}>
-        <h3>${escapeHtml(item.title)}</h3>
-        ${catLine}
-        ${item.frequency ? `<p><strong>Frequency:</strong> ${escapeHtml(item.frequency)}</p>` : ""}
-        ${item.dates ? `<p><strong>Dates:</strong> ${escapeHtml(item.dates)}</p>` : ""}
-        ${item.location ? `<p><strong>Location:</strong> ${escapeHtml(item.location)}</p>` : ""}
-        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${escapeHtml(item.submissionDeadlines)}</p>` : ""}
-        ${item.website ? `<p><a href="${escapeAttr(item.website)}" target="_blank" rel="noopener">Website</a></p>` : ""}
-        ${item.description ? `<p>${nl2br(escapeHtml(item.description))}</p>` : ""}
+      <article class="calendar-card">
+        <h3>${item.title}</h3>
+        ${item.description ? `<p>${item.description}</p>` : ""}
+        ${item.website ? `<p><a href="${item.website}" target="_blank">Website</a></p>` : ""}
       </article>
     `;
   }
@@ -384,13 +266,13 @@ function renderPopularConferenceButtons() {
   // Helpers
   // -------------------------
   function getCategory(tag) {
-    return CATEGORIES.find(c => c.tag === tag) || null;
+    return CATEGORIES.find(c => c.tag === tag);
   }
 
   function reset() {
     state.activeTag = null;
     state.confMode = "all";
-    highlightMenu("");
+    hidePopularConferenceButtons();
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
     setStatus("Cleared selection.");
@@ -402,58 +284,12 @@ function renderPopularConferenceButtons() {
   }
 
   function setStatus(msg) {
-    if (els.status) els.status.textContent = msg;
+    els.status.textContent = msg;
   }
 
   function highlightMenu(tag) {
-    els.menu.querySelectorAll("button[data-filter-tag]").forEach(b => {
-      const bTag = (b.dataset.filterTag ?? "").trim();
-      b.classList.toggle("active", bTag === tag);
-      b.setAttribute("aria-pressed", bTag === tag ? "true" : "false");
-    });
+    els.menu.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("active", b.dataset.filterTag === tag)
+    );
   }
-
-  function coalesce(...vals) {
-    for (const v of vals) {
-      if (v === null || v === undefined) continue;
-      const s = String(v).trim();
-      if (s) return s;
-    }
-    return "";
-  }
-
-  function escapeHtml(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function escapeAttr(s) {
-    return String(s).replaceAll('"', "%22");
-  }
-
-  function nl2br(s) {
-    return String(s).replaceAll("\n", "<br>");
-  }
-// -------------------------
-// Last updated (footer)
-// -------------------------
-const lastUpdatedEl = document.getElementById("last-updated");
-if (lastUpdatedEl) {
-  const d = new Date(document.lastModified);
-
-  const formatted = d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  lastUpdatedEl.textContent = `Last Updated: ${formatted}`;
-}   
 })();
-
-
-
