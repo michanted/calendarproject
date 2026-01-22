@@ -70,6 +70,71 @@ Community contests and prizes highlighting creativity and achievement
 `,
 };
 
+const CATEGORY_SCHEMAS = {
+  conferences: [
+    "title",
+    "frequency",
+    "dates",
+    "location",
+    "submissionDeadlines",
+    "website",
+  ],
+
+  online: [
+    "title",
+    "frequency",
+    "dates",
+    "description",
+    "website",
+  ],
+
+  "special-issue": [
+    "title",              // journal name
+    "journalType",
+    "openAccessStatus",
+    "website",
+  ],
+
+  education: [
+    "title",
+    "programType",
+    "dates",
+    "location",
+    "website",
+  ],
+
+  "grad-program": [
+    "title",
+    "degreeType",
+    "institution",
+    "location",
+    "website",
+  ],
+
+  jobs: [
+    "title",
+    "roleType",
+    "institution",
+    "location",
+    "website",
+  ],
+
+  funding: [
+    "title",
+    "fundingType",
+    "dates",
+    "eligibility",
+    "website",
+  ],
+
+  competitions: [
+    "title",
+    "focusArea",
+    "frequency",
+    "eligibility",
+    "website",
+  ],
+};
 
    
   const POPULAR_CONFERENCES = [
@@ -401,6 +466,7 @@ if (els.description) {
     );
   }
 })();
+
 
 
 
