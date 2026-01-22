@@ -156,6 +156,17 @@ const CATEGORY_SCHEMAS = {
     { label: "VSS", id: "vision-sciences-society-vss-2026" },
   ];
 
+  const POPULAR_JOURNALS = [
+  { label: "Vision Research", id: "vision-research" },
+  { label: "Journal of Vision", id: "journal-of-vision" },
+  { label: "IOVS", id: "iovs" },
+];
+
+const POPULAR_JOURNAL_ID_SET = new Set(
+  POPULAR_JOURNALS.map(j => j.id)
+);
+
+
   const POPULAR_ID_SET = new Set(POPULAR_CONFERENCES.map(p => p.id));
 
   const els = {
@@ -196,19 +207,21 @@ const CATEGORY_SCHEMAS = {
     els.search.addEventListener("input", onSearchInput);
   }
 
-  // -------------------------
+    // -------------------------
   // Handlers
   // -------------------------
+
   async function onMenuClick(e) {
     const btn = e.target.closest("button[data-filter-tag]");
-    if (!btn) 
-       return;
-    state.activeSubfilter = "";
+    if (!btn) return;
 
+    // Reset state
+    state.activeSubfilter = "";
     clearSearch();
 
     const tag = (btn.dataset.filterTag ?? "").trim();
 
+    // CLEAR button
     if (tag === "") {
       history.pushState({}, "", window.location.pathname);
       reset();
@@ -224,7 +237,7 @@ const CATEGORY_SCHEMAS = {
 
     highlightMenu(tag);
 
-    setStatus(`Loading…`);
+    setStatus("Loading…");
     els.list.innerHTML = `<p>Loading…</p>`;
 
     await ensureLoaded(tag);
@@ -235,6 +248,7 @@ const CATEGORY_SCHEMAS = {
     const btn = e.target.closest("button[data-conf-filter]");
     if (!btn) return;
 
+    // Conference-only filters
     if (state.activeTag !== "conferences") return;
     if (state.searchQuery) return;
 
@@ -242,21 +256,22 @@ const CATEGORY_SCHEMAS = {
     if (mode !== "all" && mode !== "popular") return;
 
     state.confMode = mode;
-   state.activePopularLabel = null;
+    state.activePopularLabel = null;
 
     render();
   }
 
-function onPopularConferenceClick(e) {
-  const btn = e.target.closest("button[data-pop-conf]");
-  if (!btn) return;
+  function onPopularConferenceClick(e) {
+    const btn = e.target.closest("button[data-pop-conf]");
+    if (!btn) return;
 
-  state.activePopularLabel = btn.dataset.popConf;
-  render();
-}
-   
+    state.activePopularLabel = btn.dataset.popConf;
+    render();
+  }
+
   async function onSearchInput() {
     state.searchQuery = (els.search.value || "").trim().toLowerCase();
+
     if (!state.searchQuery) {
       render();
       return;
@@ -264,299 +279,228 @@ function onPopularConferenceClick(e) {
 
     setStatus("Loading all categories for search…");
     els.subfilters.innerHTML = "";
+
     await ensureAllLoaded();
     render();
   }
 
-function onCategorySubfilterClick(e) {
-  const btn = e.target.closest("button[data-subfilter]");
-  if (!btn) return;
+  function onCategorySubfilterClick(e) {
+    const btn = e.target.closest("button[data-subfilter]");
+    if (!btn) return;
 
-  state.activeSubfilter = btn.dataset.subfilter;
-  render();
+    state.activeSubfilter = btn.dataset.subfilter;
+    render();
+  }
+
+ // -------------------------
+// Data
+// -------------------------
+async function ensureLoaded(tag) {
+  if (state.cache.has(tag)) return;
+
+  const category = getCategory(tag);
+  if (!category) return;
+
+  const response = await fetch(
+    new URL(DATA_BASE + category.file, location),
+    { cache: "no-store" }
+  );
+
+  const rawData = await response.json();
+  const normalized = rawData.map(item => normalizeItem(item, category));
+
+  state.cache.set(tag, normalized);
 }
 
-  // -------------------------
-  // Data
-  // -------------------------
-  async function ensureLoaded(tag) {
-    if (state.cache.has(tag)) return;
+async function ensureAllLoaded() {
+  if (state.allLoaded) return;
 
-    const cat = getCategory(tag);
-    const res = await fetch(new URL(DATA_BASE + cat.file, location), { cache: "no-store" });
-    const data = await res.json();
-    state.cache.set(tag, data.map(o => normalizeItem(o, cat)));
-  }
+  await Promise.all(
+    CATEGORIES.map(cat => ensureLoaded(cat.tag))
+  );
 
-  async function ensureAllLoaded() {
-    if (state.allLoaded) return;
-    await Promise.all(CATEGORIES.map(c => ensureLoaded(c.tag)));
-    state.allLoaded = true;
-  }
+  state.allLoaded = true;
+}
 
-  function normalizeItem(raw, cat) {
-    return {
-      _id: String(raw?.id ?? ""),
-      _category: cat.label,
-      title: raw.title || raw.name || raw.id || "(Untitled)",
-      description: raw.description || "",
-      website: raw.website || raw.url || "",
-      location: raw.location || "",
-      dates: raw.dates || "",
-      frequency: raw.frequency || "",
-      submissionDeadlines: raw.submissionDeadlines || "",
-    };
-  }
+function normalizeItem(raw, category) {
+  return {
+    _id: String(raw?.id ?? ""),
+    _category: category.label,
 
-  // -------------------------
-  // Rendering
-  // -------------------------
+    title: raw.title || raw.name || raw.id || "(Untitled)",
+    description: raw.description || "",
+    website: raw.website || raw.url || "",
+
+    location: raw.location || "",
+    dates: raw.dates || "",
+    frequency: raw.frequency || "",
+    submissionDeadlines: raw.submissionDeadlines || "",
+
+    // category-specific fields pass through untouched
+    ...raw,
+  };
+}
+
+
   function render() {
-    if (!state.activeTag && !state.searchQuery) return;
+  if (!state.activeTag && !state.searchQuery) return;
 
-    let items = [];
+  let items = [];
 
-    if (state.searchQuery) {
-      for (const arr of state.cache.values()) items.push(...arr);
-      const q = state.searchQuery;
-      items = items.filter(i =>
-        Object.values(i).join(" ").toLowerCase().includes(q)
-      );
-      els.subfilters.innerHTML = "";
-      setStatus(`Search results (${items.length})`);
-    } else {
-      const cat = getCategory(state.activeTag);
-      items = state.cache.get(state.activeTag) || [];
-      // Online Seminars subfilters
-if (state.activeTag === "online" && state.activeSubfilter) {
-  const q = state.activeSubfilter;
-  items = items.filter(i =>
-    `${i.title} ${i.description}`.toLowerCase().includes(q)
-  );
-}
+  // -------------------------
+  // SEARCH MODE
+  // -------------------------
+  if (state.searchQuery) {
+    for (const arr of state.cache.values()) items.push(...arr);
 
-// Special / Feature Issues subfilters
-if (state.activeTag === "special-issue" && state.activeSubfilter) {
-  const f = state.activeSubfilter;
-
-  if (f === "popular") {
-    items = items.filter(i => i.isPopular === true);
-  } else if (f === "open" || f === "hybrid") {
-    items = items.filter(i => i.openAccessStatus === f);
-  }
-}
-
-
-      if (state.activeTag === "conferences") {
-        renderConferenceControls();
-
-       if (state.confMode === "popular") {
-  items = items.filter(i => POPULAR_ID_SET.has(i._id));
-
-  if (state.activePopularLabel) {
-    const match = POPULAR_CONFERENCES.find(
-      p => p.label === state.activePopularLabel
+    const q = state.searchQuery;
+    items = items.filter(item =>
+      Object.values(item).join(" ").toLowerCase().includes(q)
     );
-    if (match) {
-      items = items.filter(i => i._id === match.id);
-    }
+
+    els.subfilters.innerHTML = "";
+    setStatus(`Search results (${items.length})`);
   }
 
-  renderPopularConferenceButtons();
-  setStatus(
-    state.activePopularLabel
-      ? `Loaded 1 item (${state.activePopularLabel}).`
-      : `Loaded ${items.length} items in Popular Conferences.`
-  );
-} else {
-  hidePopularConferenceButtons();
-  renderCategorySubfilters();
-  setStatus(`Loaded ${items.length} items in ${cat.label}.`);
-}
+  // -------------------------
+  // CATEGORY MODE
+  // -------------------------
+  else {
+    const category = getCategory(state.activeTag);
+    items = state.cache.get(state.activeTag) || [];
+
+    // ---- Category subfilter logic
+    if (state.activeSubfilter) {
+      // Online Seminars
+      if (state.activeTag === "online") {
+        const q = state.activeSubfilter;
+        items = items.filter(item =>
+          `${item.title} ${item.description}`.toLowerCase().includes(q)
+        );
+      }
+
+      // Special / Feature Issues
+      if (state.activeTag === "special-issue") {
+        if (state.activeSubfilter === "popular") {
+          items = items.filter(item => item.isPopular === true);
+        } else if (
+          state.activeSubfilter === "open" ||
+          state.activeSubfilter === "hybrid"
+        ) {
+          items = items.filter(
+            item => item.openAccessStatus === state.activeSubfilter
+          );
+        }
+      }
+    }
+
+    // ---- Conferences (special case)
+    if (state.activeTag === "conferences") {
+      renderConferenceControls();
+
+      if (state.confMode === "popular") {
+        items = items.filter(item => POPULAR_ID_SET.has(item._id));
+
+        if (state.activePopularLabel) {
+          const match = POPULAR_CONFERENCES.find(
+            p => p.label === state.activePopularLabel
+          );
+          if (match) {
+            items = items.filter(item => item._id === match.id);
+          }
+        }
+
+        renderPopularConferenceButtons();
+
+        setStatus(
+          state.activePopularLabel
+            ? `Loaded 1 item (${state.activePopularLabel}).`
+            : `Loaded ${items.length} items in Popular Conferences.`
+        );
       } else {
         hidePopularConferenceButtons();
-        els.subfilters.innerHTML = "";
-        if (state.activeTag === "online") renderCategorySubfilters();
-        setStatus(`Loaded ${items.length} items in ${cat.label}.`);
+        renderCategorySubfilters();
+        setStatus(`Loaded ${items.length} items in ${category.label}.`);
       }
     }
 
-if (els.description) {
-  const text = CATEGORY_DESCRIPTIONS[state.activeTag];
-  if (text) {
-    els.description.textContent = text.trim();
-    els.description.style.display = "block";
-  } else {
-    els.description.style.display = "none";
+    // ---- All other categories
+    else {
+      hidePopularConferenceButtons();
+      renderCategorySubfilters();
+      setStatus(`Loaded ${items.length} items in ${category.label}.`);
+    }
+  }
+
+  // -------------------------
+  // Category description
+  // -------------------------
+  if (els.description) {
+    const text = CATEGORY_DESCRIPTIONS[state.activeTag];
+    if (text) {
+      els.description.textContent = text.trim();
+      els.description.style.display = "block";
+    } else {
+      els.description.textContent = "";
+      els.description.style.display = "none";
+    }
+  }
+
+  // -------------------------
+  // Render cards
+  // -------------------------
+  els.list.innerHTML = items.length
+    ? items.map(renderCard).join("")
+    : `<p>No items found.</p>`;
+}
+
+
+// -------------------------
+// Helpers
+// -------------------------
+function getCategory(tag) {
+  return CATEGORIES.find(c => c.tag === tag);
+}
+
+function reset() {
+  state.activeTag = null;
+  state.confMode = "all";
+  state.activePopularLabel = null;
+  state.activeSubfilter = "";
+
+  hidePopularConferenceButtons();
+  hidePopularJournalButtons();
+
+  els.subfilters.innerHTML = "";
+  els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
+  setStatus("Cleared selection.");
+
+  if (els.description) {
     els.description.textContent = "";
+    els.description.style.display = "none";
   }
 }
-     
-    els.list.innerHTML = items.length
-      ? items.map(renderCard).join("")
-      : `<p>No items found.</p>`;
-  }
 
-  function renderConferenceControls() {
-    els.subfilters.innerHTML = `
-      <div class="category-menu" style="margin:8px 0;">
-        <button data-conf-filter="all" class="${state.confMode === "all" ? "active" : ""}">
-          All Conferences
-        </button>
-        <button data-conf-filter="popular" class="${state.confMode === "popular" ? "active" : ""}">
-          Popular Conferences
-        </button>
-      </div>
-    `;
-  }
+function hidePopularJournalButtons() {
+  const c = document.getElementById("popular-journal-filters");
+  if (!c) return;
 
-  function renderPopularConferenceButtons() {
-    const c = document.getElementById("popular-conference-filters");
-    if (!c) return;
-    c.innerHTML = "";
-
-    POPULAR_CONFERENCES
-      .map(p => p.label)
-      .sort()
-      .forEach(label => {
-        const b = document.createElement("button");
-        b.textContent = label;
-        b.dataset.popConf = label; 
-        b.className = "calendar-subfilter";
-        b.type = "button";
-        c.appendChild(b);
-      });
-
-    c.style.display = "block";
-  }
-
-  function hidePopularConferenceButtons() {
-    const c = document.getElementById("popular-conference-filters");
-    if (!c) return;
-    c.style.display = "none";
-    c.innerHTML = "";
-  }
-
-  // ✅ FIX 2: moved OUT of renderCard so render() can call it
-  function renderCategorySubfilters() {
-    const filters = CATEGORY_SUBFILTERS[state.activeTag];
-    if (!filters) return;
-
-    els.subfilters.innerHTML = `
-      <div class="category-menu" style="margin:8px 0;">
-        ${filters
-          .map(
-            f => `
-            <button
-              data-subfilter="${f.value}"
-              class="${state.activeSubfilter === f.value ? "active" : ""}"
-            >
-              ${f.label}
-            </button>
-          `
-          )
-          .join("")}
-      </div>
-    `;
-  }
-
-  function renderCard(item) {
-  const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
-
-  const fieldLabels = {
-    frequency: "Frequency",
-    dates: "Dates",
-    location: "Location",
-    submissionDeadlines: "Submission deadlines",
-    journalType: "Journal type",
-    openAccessStatus: "Open access",
-    programType: "Program type",
-    degreeType: "Degree type",
-    institution: "Institution",
-    roleType: "Role type",
-    fundingType: "Funding type",
-    focusArea: "Focus area",
-    eligibility: "Eligibility",
-  };
-
-  const rows = schema
-    .filter(field => field !== "title")
-    .map(field => {
-      const value = item[field];
-      if (!value) return "";
-
-      if (field === "website") {
-        return `<p><a href="${value}" target="_blank" rel="noopener">Website</a></p>`;
-      }
-
-      if (field === "description" || field === "eligibility") {
-        return `<p>${value}</p>`;
-      }
-
-      const label = fieldLabels[field] || field;
-      return `<p><strong>${label}:</strong> ${value}</p>`;
-    })
-    .join("");
-
-  return `
-    <article class="calendar-card">
-      <h3>${item.title}</h3>
-      ${rows}
-    </article>
-  `;
+  c.innerHTML = "";
+  c.style.display = "none";
 }
 
-const CATEGORY_SUBFILTERS = {
-  online: [
-    { label: "All", value: "" },
-    { label: "Journal Clubs", value: "journal club" },
-    { label: "Seminar Series", value: "seminar series" },
-    { label: "Workshops/Webinars", value: "workshop" },
-  ],
-
-  "special-issue": [
-    { label: "All", value: "" },
-    { label: "Popular Journals", value: "popular" },
-    { label: "Open", value: "open" },
-    { label: "Hybrid", value: "hybrid" },
-  ],
-};
-
-  // -------------------------
-  // Helpers
-  // -------------------------
-  function getCategory(tag) {
-    return CATEGORIES.find(c => c.tag === tag);
-  }
-
-  function reset() {
-    state.activeTag = null;
-    state.confMode = "all";
-     state.activePopularLabel = null;
-     state.activeSubfilter = "";
-    hidePopularConferenceButtons();
-    els.subfilters.innerHTML = "";
-    els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
-    setStatus("Cleared selection.");
-if (els.description) {
-  els.description.style.display = "none";
-  els.description.textContent = "";
+function clearSearch() {
+  state.searchQuery = "";
+  if (els.search) els.search.value = "";
 }
-  }
 
-  function clearSearch() {
-    state.searchQuery = "";
-    if (els.search) els.search.value = "";
-  }
+function setStatus(msg) {
+  els.status.textContent = msg;
+}
 
-  function setStatus(msg) {
-    els.status.textContent = msg;
-  }
-
-  function highlightMenu(tag) {
-    els.menu.querySelectorAll("button").forEach(b =>
-      b.classList.toggle("active", b.dataset.filterTag === tag)
-    );
-  }
+function highlightMenu(tag) {
+  els.menu.querySelectorAll("button").forEach(btn =>
+    btn.classList.toggle("active", btn.dataset.filterTag === tag)
+  );
+}
 })();
-
