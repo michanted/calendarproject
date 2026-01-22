@@ -176,7 +176,7 @@ const CATEGORY_SCHEMAS = {
     activeTag: null,
     confMode: "all", // "all" | "popular"
     activePopularLabel: null, 
-    activeSubfilter: "",            // FIX 1: add to state
+    activeSubfilter: "",            // ✅ FIX 1
     cache: new Map(),
     searchQuery: "",
     allLoaded: false,
@@ -189,10 +189,8 @@ const CATEGORY_SCHEMAS = {
 
   els.menu.addEventListener("click", onMenuClick);
   els.subfilters.addEventListener("click", onSubfilterClick);
-  els.subfilters.addEventListener("click", onCategorySubfilterClick); // FIX 2: bind once (not inside handler)
+  els.subfilters.addEventListener("click", onCategorySubfilterClick);
   document.addEventListener("click", onPopularConferenceClick);
-
- 
 
   if (els.search) {
     els.search.addEventListener("input", onSearchInput);
@@ -273,11 +271,10 @@ function onPopularConferenceClick(e) {
 function onCategorySubfilterClick(e) {
   const btn = e.target.closest("button[data-subfilter]");
   if (!btn) return;
-  state.activeSubfilter = btn.dataset.subfilter; // FIX 3: remove accidental addEventListener line
+
+  state.activeSubfilter = btn.dataset.subfilter;
   render();
 }
-
- 
 
   // -------------------------
   // Data
@@ -359,13 +356,14 @@ function onCategorySubfilterClick(e) {
       : `Loaded ${items.length} items in Popular Conferences.`
   );
 } else {
-          hidePopularConferenceButtons();
-          setStatus(`Loaded ${items.length} items in ${cat.label}.`);
-        }
+  hidePopularConferenceButtons();
+  renderCategorySubfilters();
+  setStatus(`Loaded ${items.length} items in ${cat.label}.`);
+}
       } else {
         hidePopularConferenceButtons();
         els.subfilters.innerHTML = "";
-        if (state.activeTag === "online") renderCategorySubfilters(); // FIX 4: actually render category subfilters
+        if (state.activeTag === "online") renderCategorySubfilters();
         setStatus(`Loaded ${items.length} items in ${cat.label}.`);
       }
     }
@@ -426,6 +424,29 @@ if (els.description) {
     c.innerHTML = "";
   }
 
+  // ✅ FIX 2: moved OUT of renderCard so render() can call it
+  function renderCategorySubfilters() {
+    const filters = CATEGORY_SUBFILTERS[state.activeTag];
+    if (!filters) return;
+
+    els.subfilters.innerHTML = `
+      <div class="category-menu" style="margin:8px 0;">
+        ${filters
+          .map(
+            f => `
+            <button
+              data-subfilter="${f.value}"
+              class="${state.activeSubfilter === f.value ? "active" : ""}"
+            >
+              ${f.label}
+            </button>
+          `
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
   function renderCard(item) {
   const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
 
@@ -472,29 +493,6 @@ if (els.description) {
   `;
 }
 
-   function renderCategorySubfilters() {
-  const filters = CATEGORY_SUBFILTERS[state.activeTag];
-  if (!filters) return;
-
-  els.subfilters.innerHTML = `
-    <div class="category-menu" style="margin:8px 0;">
-      ${filters
-        .map(
-          f => `
-          <button
-            data-subfilter="${f.value}"
-            class="${state.activeSubfilter === f.value ? "active" : ""}"
-          >
-            ${f.label}
-          </button>
-        `
-        )
-        .join("")}
-    </div>
-  `;
-}
-
-
 const CATEGORY_SUBFILTERS = {
   online: [
     { label: "All", value: "" },
@@ -502,8 +500,14 @@ const CATEGORY_SUBFILTERS = {
     { label: "Seminar Series", value: "seminar series" },
     { label: "Workshops/Webinars", value: "workshop" },
   ],
-};
 
+  "special-issue": [
+    { label: "All", value: "" },
+    { label: "Popular Journals", value: "popular" },
+    { label: "Open", value: "open" },
+    { label: "Hybrid", value: "hybrid" },
+  ],
+};
 
   // -------------------------
   // Helpers
@@ -516,7 +520,7 @@ const CATEGORY_SUBFILTERS = {
     state.activeTag = null;
     state.confMode = "all";
      state.activePopularLabel = null;
-     state.activeSubfilter = "";     // FIX 4 (part 2): correct reset
+     state.activeSubfilter = "";
     hidePopularConferenceButtons();
     els.subfilters.innerHTML = "";
     els.list.innerHTML = `<p>Select a category above to view items, or search.</p>`;
