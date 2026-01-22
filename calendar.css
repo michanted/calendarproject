@@ -109,10 +109,20 @@ a:visited {
   margin: 6px 0;
 }
 
+/* ---------- Popular conference subfilters ---------- */
+#popular-conference-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+
 /* ---------- Footer ---------- */
 .page-footer {
   margin-top: 24px;
 }
+
 
 
 
