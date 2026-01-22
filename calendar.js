@@ -327,12 +327,25 @@ function onCategorySubfilterClick(e) {
     } else {
       const cat = getCategory(state.activeTag);
       items = state.cache.get(state.activeTag) || [];
-      if (state.activeTag === "online" && state.activeSubfilter) {
-        const q = state.activeSubfilter;
-        items = items.filter(i =>
-          `${i.title} ${i.description}`.toLowerCase().includes(q)
-        );
-      }
+      // Online Seminars subfilters
+if (state.activeTag === "online" && state.activeSubfilter) {
+  const q = state.activeSubfilter;
+  items = items.filter(i =>
+    `${i.title} ${i.description}`.toLowerCase().includes(q)
+  );
+}
+
+// Special / Feature Issues subfilters
+if (state.activeTag === "special-issue" && state.activeSubfilter) {
+  const f = state.activeSubfilter;
+
+  if (f === "popular") {
+    items = items.filter(i => i.isPopular === true);
+  } else if (f === "open" || f === "hybrid") {
+    items = items.filter(i => i.openAccessStatus === f);
+  }
+}
+
 
       if (state.activeTag === "conferences") {
         renderConferenceControls();
@@ -546,3 +559,4 @@ if (els.description) {
     );
   }
 })();
+
