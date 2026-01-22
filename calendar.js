@@ -340,6 +340,28 @@
   `;
 }
 
+function renderPopularConferenceButtons() {
+  const container = document.getElementById("popular-conference-filters");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  POPULAR_CONFERENCES
+    .map(p => p.label)
+    .sort()
+    .forEach(label => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = label;
+      btn.className = "calendar-subfilter";
+      btn.dataset.popConf = label;
+      container.appendChild(btn);
+    });
+
+  container.style.display = "block";
+}
+
+   
   function renderCard(item) {
     const idAttr = item._id ? ` id="${escapeAttr(item._id)}"` : "";
     const catLine = state.searchQuery ? `<p><strong>Category:</strong> ${escapeHtml(item._category)}</p>` : "";
@@ -432,5 +454,6 @@ if (lastUpdatedEl) {
   lastUpdatedEl.textContent = `Last Updated: ${formatted}`;
 }   
 })();
+
 
 
