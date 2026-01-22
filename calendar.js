@@ -407,27 +407,51 @@ if (els.description) {
   }
 
   function renderCard(item) {
-  if (state.activeTag === "conferences") {
-    return `
-      <article class="calendar-card">
-        <h3>${item.title}</h3>
-        ${item.frequency ? `<p><strong>Frequency:</strong> ${item.frequency}</p>` : ""}
-        ${item.dates ? `<p><strong>Dates:</strong> ${item.dates}</p>` : ""}
-        ${item.location ? `<p><strong>Location:</strong> ${item.location}</p>` : ""}
-        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${item.submissionDeadlines}</p>` : ""}
-        ${item.website ? `<p><a href="${item.website}" target="_blank" rel="noopener">Website</a></p>` : ""}
-      </article>
-    `;
-  }
+  const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
+
+  const fieldLabels = {
+    frequency: "Frequency",
+    dates: "Dates",
+    location: "Location",
+    submissionDeadlines: "Submission deadlines",
+    journalType: "Journal type",
+    openAccessStatus: "Open access",
+    programType: "Program type",
+    degreeType: "Degree type",
+    institution: "Institution",
+    roleType: "Role type",
+    fundingType: "Funding type",
+    focusArea: "Focus area",
+    eligibility: "Eligibility",
+  };
+
+  const rows = schema
+    .filter(field => field !== "title")
+    .map(field => {
+      const value = item[field];
+      if (!value) return "";
+
+      if (field === "website") {
+        return `<p><a href="${value}" target="_blank" rel="noopener">Website</a></p>`;
+      }
+
+      if (field === "description" || field === "eligibility") {
+        return `<p>${value}</p>`;
+      }
+
+      const label = fieldLabels[field] || field;
+      return `<p><strong>${label}:</strong> ${value}</p>`;
+    })
+    .join("");
 
   return `
     <article class="calendar-card">
       <h3>${item.title}</h3>
-      ${item.description ? `<p>${item.description}</p>` : ""}
-      ${item.website ? `<p><a href="${item.website}" target="_blank" rel="noopener">Website</a></p>` : ""}
+      ${rows}
     </article>
   `;
 }
+
 
 
   // -------------------------
@@ -466,6 +490,7 @@ if (els.description) {
     );
   }
 })();
+
 
 
 
