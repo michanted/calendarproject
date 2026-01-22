@@ -455,6 +455,122 @@ function normalizeItem(raw, category) {
 }
 
 
+  // -------------------------
+// Render helpers (REQUIRED)
+// -------------------------
+
+function renderConferenceControls() {
+  els.subfilters.innerHTML = `
+    <div class="category-menu" style="margin:8px 0;">
+      <button data-conf-filter="all" class="${state.confMode === "all" ? "active" : ""}">
+        All Conferences
+      </button>
+      <button data-conf-filter="popular" class="${state.confMode === "popular" ? "active" : ""}">
+        Popular Conferences
+      </button>
+    </div>
+  `;
+}
+
+function renderPopularConferenceButtons() {
+  const c = document.getElementById("popular-conference-filters");
+  if (!c) return;
+
+  c.innerHTML = "";
+
+  POPULAR_CONFERENCES
+    .map(p => p.label)
+    .sort()
+    .forEach(label => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.dataset.popConf = label;
+      b.className = "calendar-subfilter";
+      b.type = "button";
+      c.appendChild(b);
+    });
+
+  c.style.display = "block";
+}
+
+function hidePopularConferenceButtons() {
+  const c = document.getElementById("popular-conference-filters");
+  if (!c) return;
+
+  c.innerHTML = "";
+  c.style.display = "none";
+}
+
+function renderCategorySubfilters() {
+  const filters = CATEGORY_SUBFILTERS[state.activeTag];
+  if (!filters) {
+    els.subfilters.innerHTML = "";
+    return;
+  }
+
+  els.subfilters.innerHTML = `
+    <div class="category-menu" style="margin:8px 0;">
+      ${filters
+        .map(
+          f => `
+          <button
+            data-subfilter="${f.value}"
+            class="${state.activeSubfilter === f.value ? "active" : ""}"
+          >
+            ${f.label}
+          </button>
+        `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderCard(item) {
+  const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
+
+  const labels = {
+    frequency: "Frequency",
+    dates: "Dates",
+    location: "Location",
+    submissionDeadlines: "Submission deadlines",
+    journalType: "Journal type",
+    openAccessStatus: "Open access",
+    programType: "Program type",
+    degreeType: "Degree type",
+    institution: "Institution",
+    roleType: "Role type",
+    fundingType: "Funding type",
+    focusArea: "Focus area",
+    eligibility: "Eligibility",
+  };
+
+  const rows = schema
+    .filter(f => f !== "title")
+    .map(f => {
+      const v = item[f];
+      if (!v) return "";
+
+      if (f === "website") {
+        return `<p><a href="${v}" target="_blank" rel="noopener">Website</a></p>`;
+      }
+
+      if (f === "description" || f === "eligibility") {
+        return `<p>${v}</p>`;
+      }
+
+      return `<p><strong>${labels[f] || f}:</strong> ${v}</p>`;
+    })
+    .join("");
+
+  return `
+    <article class="calendar-card">
+      <h3>${item.title}</h3>
+      ${rows}
+    </article>
+  `;
+} 
+
 // -------------------------
 // Helpers
 // -------------------------
@@ -504,3 +620,4 @@ function highlightMenu(tag) {
   );
 }
 })();
+
