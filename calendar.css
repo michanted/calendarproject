@@ -117,11 +117,34 @@ a:visited {
   margin: 6px 0;
 }
 
+#popular-conference-filters button {
+  appearance: auto;
+  -webkit-appearance: button;
+
+  background: ButtonFace;
+  color: ButtonText;
+
+  border: 2px outset ButtonFace;
+  border-radius: 0;
+
+  padding: 2px 8px;
+  margin: 0;
+
+  font: menu;
+  cursor: default;
+}
+
+#popular-conference-filters button:active {
+  border-style: inset;
+}
+
+
 
 /* ---------- Footer ---------- */
 .page-footer {
   margin-top: 24px;
 }
+
 
 
 
