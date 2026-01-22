@@ -282,14 +282,28 @@ function onPopularConferenceClick(e) {
   }
 
   function renderCard(item) {
+  if (state.activeTag === "conferences") {
     return `
       <article class="calendar-card">
         <h3>${item.title}</h3>
-        ${item.description ? `<p>${item.description}</p>` : ""}
-        ${item.website ? `<p><a href="${item.website}" target="_blank">Website</a></p>` : ""}
+        ${item.frequency ? `<p><strong>Frequency:</strong> ${item.frequency}</p>` : ""}
+        ${item.dates ? `<p><strong>Dates:</strong> ${item.dates}</p>` : ""}
+        ${item.location ? `<p><strong>Location:</strong> ${item.location}</p>` : ""}
+        ${item.submissionDeadlines ? `<p><strong>Submission deadlines:</strong> ${item.submissionDeadlines}</p>` : ""}
+        ${item.website ? `<p><a href="${item.website}" target="_blank" rel="noopener">Website</a></p>` : ""}
       </article>
     `;
   }
+
+  return `
+    <article class="calendar-card">
+      <h3>${item.title}</h3>
+      ${item.description ? `<p>${item.description}</p>` : ""}
+      ${item.website ? `<p><a href="${item.website}" target="_blank" rel="noopener">Website</a></p>` : ""}
+    </article>
+  `;
+}
+
 
   // -------------------------
   // Helpers
@@ -324,4 +338,5 @@ function onPopularConferenceClick(e) {
     );
   }
 })();
+
 
