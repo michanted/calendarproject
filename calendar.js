@@ -13,18 +13,24 @@
 (() => {
   const DATA_BASE = "./";
 
-  const CATEGORIES = [
-    { tag: "conferences", label: "Conferences", file: "conferences.json" },
-    { tag: "online", label: "Online Seminars/Clubs", file: "online_seminars_clubs.json" },
-    { tag: "special-issue", label: "Special Features/Issues", file: "special_features_issues.json" },
-    { tag: "education", label: "Education", file: "education.json" },
-    { tag: "grad-program", label: "Grad Programs", file: "grad_programs.json" },
-    { tag: "jobs", label: "Jobs", file: "jobs.json" },
-    { tag: "funding", label: "Funding", file: "funding.json" },
-    { tag: "competitions", label: "Competitions", file: "competitions.json" },
-  ];
+const CATEGORIES = [
+  { tag: "community",     label: "Community Events & Honors", file: "community_events_honors.json" },
+  { tag: "conferences",   label: "Conferences",               file: "conferences.json" },
+  { tag: "online",        label: "Online Seminars/Clubs",     file: "online_seminars_clubs.json" },
+  { tag: "special-issue", label: "Special & Feature Issues", file: "special_features_issues.json" },  
+  { tag: "education",     label: "Education",                 file: "education.json" },
+  { tag: "grad-program",  label: "Grad Programs",             file: "grad_programs.json" },
+  { tag: "jobs",          label: "Jobs",                      file: "jobs.json" },
+  { tag: "funding",       label: "Funding",                   file: "funding.json" },
+  { tag: "competitions",  label: "Competitions",              file: "competitions.json" },
+  { tag: "passings",      label: "Passings",                  file: "passings.json" }
+];
 
 const CATEGORY_DESCRIPTIONS = {
+  community: `
+Community-wide events marking major contributions, milestones, and notable moments in vision science.
+`,
+
   conferences: `
 Major academic and industry meetings in vision science, neuroscience, imaging, color, and related fields.
 Includes key dates for abstracts, registration, and workshops.
@@ -43,8 +49,7 @@ Attention, Perception & Performance; Color Research and Application; IOVS; JOSA 
 Multisensory Perception; Perception; and Vision Research.
 
 We also provide permanent links for some journals’ special or feature issues.
-If you have suggestions for journals or calls we should track, or would like to share information
-about a special issue, please contact us.
+If you have suggestions for journals or calls we should track, or would like to share information about a special issue, please contact us.
 `,
 
   education: `
@@ -68,9 +73,22 @@ Travel awards, fellowships, and research support opportunities with typical time
 Community contests and prizes highlighting creativity and achievement
 (e.g., Illusion of the Year).
 `,
+
+  passings: `
+Recent passings and memorial notices for members of the vision science community, including links to historical resources and biographical notes where available.
+`,
 };
 
 const CATEGORY_SCHEMAS = {
+  community: [
+    "title",
+    "year",
+    "recipient",
+    "organization",
+    "description",
+    "website",
+  ],
+
   conferences: [
     "title",
     "frequency",
@@ -83,13 +101,13 @@ const CATEGORY_SCHEMAS = {
   online: [
     "title",
     "frequency",
-    "dates",
+    "schedule",
     "description",
     "website",
   ],
 
   "special-issue": [
-    "title",              // journal name
+    "title",
     "journalType",
     "openAccessStatus",
     "website",
@@ -97,9 +115,12 @@ const CATEGORY_SCHEMAS = {
 
   education: [
     "title",
-    "programType",
+    "type",
     "dates",
     "location",
+    "deadlines",
+    "format",
+    "notes",
     "website",
   ],
 
@@ -108,6 +129,7 @@ const CATEGORY_SCHEMAS = {
     "degreeType",
     "institution",
     "location",
+    "applicationDeadline",
     "website",
   ],
 
@@ -116,13 +138,14 @@ const CATEGORY_SCHEMAS = {
     "roleType",
     "institution",
     "location",
+    "applicationDeadline",
     "website",
   ],
 
   funding: [
     "title",
     "fundingType",
-    "dates",
+    "deadline",
     "eligibility",
     "website",
   ],
@@ -132,6 +155,15 @@ const CATEGORY_SCHEMAS = {
     "focusArea",
     "frequency",
     "eligibility",
+    "website",
+  ],
+
+  passings: [
+    "title",
+    "name",
+    "dateOfPassing",
+    "affiliation",
+    "description",
     "website",
   ],
 };
@@ -295,18 +327,24 @@ function onCategorySubfilterClick(e) {
   }
 
   function normalizeItem(raw, cat) {
-    return {
-      _id: String(raw?.id ?? ""),
-      _category: cat.label,
-      title: raw.title || raw.name || raw.id || "(Untitled)",
-      description: raw.description || "",
-      website: raw.website || raw.url || "",
-      location: raw.location || "",
-      dates: raw.dates || "",
-      frequency: raw.frequency || "",
-      submissionDeadlines: raw.submissionDeadlines || "",
-    };
-  }
+  const item = {
+    _id: String(raw?.id ?? ""),
+    _category: cat.label,
+    _tag: cat.tag,
+  };
+
+  // Preserve every field from the JSON file.
+  // This is important because each category has its own display schema.
+  Object.keys(raw || {}).forEach(key => {
+    item[key] = raw[key];
+  });
+
+  // Normalize common fallbacks.
+  item.title = raw.title || raw.name || raw.programName || raw.positionTitle || raw.id || "(Untitled)";
+  item.website = raw.website || raw.url || raw.link || "";
+
+  return item;
+}
 
   // -------------------------
   // Rendering
@@ -460,33 +498,58 @@ if (els.description) {
     `;
   }
 
-  function renderCard(item) {
+ function renderCard(item) {
   const schema = CATEGORY_SCHEMAS[state.activeTag] || [];
 
   const fieldLabels = {
+    year: "Year",
+    recipient: "Recipient",
+    organization: "Organization",
+
     frequency: "Frequency",
     dates: "Dates",
     location: "Location",
     submissionDeadlines: "Submission deadlines",
+
+    schedule: "Schedule",
+    description: "Description",
+
     journalType: "Journal type",
-    openAccessStatus: "Open access",
-    programType: "Program type",
+    openAccessStatus: "Open access status",
+
+    type: "Type",
     degreeType: "Degree type",
     institution: "Institution",
+    applicationDeadline: "Application deadline",
+
     roleType: "Role type",
+
     fundingType: "Funding type",
-    focusArea: "Focus area",
+    deadline: "Deadline",
     eligibility: "Eligibility",
+
+    focusArea: "Focus area",
+
+    name: "Name",
+    dateOfPassing: "Date of passing",
+    affiliation: "Affiliation",
   };
 
   const rows = schema
     .filter(field => field !== "title")
     .map(field => {
       const value = item[field];
+
       if (!value) return "";
 
       if (field === "website") {
-        return `<p><a href="${value}" target="_blank" rel="noopener">Website</a></p>`;
+        return `
+          <p>
+            <a href="${value}" target="_blank" rel="noopener">
+              Website
+            </a>
+          </p>
+        `;
       }
 
       if (field === "description" || field === "eligibility") {
@@ -494,12 +557,13 @@ if (els.description) {
       }
 
       const label = fieldLabels[field] || field;
+
       return `<p><strong>${label}:</strong> ${value}</p>`;
     })
     .join("");
 
   return `
-    <article class="calendar-card">
+    <article class="calendar-card" id="${item._id}">
       <h3>${item.title}</h3>
       ${rows}
     </article>
