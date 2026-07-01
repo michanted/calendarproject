@@ -571,6 +571,11 @@ if (els.description) {
 }
 
 const CATEGORY_SUBFILTERS = {
+  conferences: [
+    { label: "All", value: "" },
+    { label: "Popular", value: "popular" },
+  ],
+
   online: [
     { label: "All", value: "" },
     { label: "Journal Clubs", value: "journal club" },
@@ -583,6 +588,62 @@ const CATEGORY_SUBFILTERS = {
     { label: "Popular Journals", value: "popular" },
     { label: "Open", value: "open" },
     { label: "Hybrid", value: "hybrid" },
+  ],
+
+  education: [
+    { label: "All", value: "" },
+    { label: "Workshops", value: "workshop" },
+    { label: "Summer Schools", value: "summer school" },
+    { label: "Courses", value: "course" },
+    { label: "Short Programs", value: "short program" },
+  ],
+
+  "grad-program": [
+    { label: "All", value: "" },
+    { label: "PhD", value: "phd" },
+    { label: "Masters", value: "masters" },
+    { label: "Vision Focused", value: "vision" },
+    { label: "Neuroscience/Cognitive", value: "neuroscience" },
+  ],
+
+  jobs: [
+    { label: "All", value: "" },
+    { label: "PhD", value: "phd" },
+    { label: "Postdoc", value: "postdoc" },
+    { label: "RA", value: "ra" },
+    { label: "Student & Early Career", value: "student" },
+    { label: "Faculty", value: "faculty" },
+    { label: "Industry", value: "industry" },
+    { label: "Research Admin & Coordination", value: "admin" },
+  ],
+
+  funding: [
+    { label: "All", value: "" },
+    { label: "Travel Awards", value: "travel" },
+    { label: "Fellowships", value: "fellowship" },
+    { label: "Research Grants", value: "grant" },
+    { label: "Early Career", value: "early career" },
+  ],
+
+  competitions: [
+    { label: "All", value: "" },
+    { label: "Illusions", value: "illusion" },
+    { label: "Art/Visualization", value: "art" },
+    { label: "Student Focused", value: "student" },
+    { label: "Career Awards", value: "career" },
+  ],
+
+  community: [
+    { label: "All", value: "" },
+    { label: "Awards & Honors", value: "award" },
+    { label: "Milestones", value: "milestone" },
+    { label: "Community Events", value: "event" },
+  ],
+
+  passings: [
+    { label: "All", value: "" },
+    { label: "Memorial Notices", value: "memorial" },
+    { label: "Historical Resources", value: "historical" },
   ],
 };
 
