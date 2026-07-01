@@ -1,97 +1,48 @@
-{
-  "section": {
-    "id": "Passings",
-    "title": "Passings",
-    "date": "Wednesday, 18 March 2026",
-    "description": "Dear CVNet colleagues,\nTwo years ago, during a discussion on CVNet about which deceased vision scientists should be remembered and documented, Lothar Spillmann undertook the ambitious task of compiling a near-comprehensive list. Over the intervening period, he and several colleagues have worked extensively to assemble a remarkable resource: a list of deceased vision scientists accompanied by brief biographical notes. We are very pleased to make this work available to the community. The document is now available on the CVNet website as a PDF, exactly as submitted to us. Soon, we will also release an online version of the list. This version will allow entries to be indexed and browsed in multiple ways—for example, by alphabetical order, year of birth, year of death, and other useful categories, in addition to the chapters included in Lothar’s original list—making it easier to explore the history of our field. If you notice errors or omissions, or have suggestions for additions or corrections, please feel free to send them to Christopher Tyler and David Peterzell, who are coordinating CVNet updates for this project. This is intended to be a living document that will be refined and expanded over time. We are grateful to Lothar and his collaborators for the considerable effort that went into assembling this valuable historical resource.\n\nBest regards,\nDavid Peterzell\n(for CVNet)",
-    "pdf": {
-      "label": "The PDF can be downloaded here.",
-      "href": "Vision Scientists of the  Past, Version February 10, 2026d.pdf"
-    }
+[
+  {
+    "id": "vision-scientists-historical-resource-2026",
+    "title": "Vision Scientists of the Past — Historical Resource",
+    "name": "Vision Scientists of the Past",
+    "dateOfPassing": "Historical resource",
+    "affiliation": "CVNet",
+    "description": "A near-comprehensive list of deceased vision scientists compiled by Lothar Spillmann and colleagues, with brief biographical notes. This resource is intended as a living document for the vision science community.",
+    "website": "Vision Scientists of the  Past, Version February 10, 2026d.pdf",
+    "tags": ["passings", "historical", "resource", "vision-science"]
   },
-  "subsections": [
-    {
-      "title": "Recent Passings",
-      "cards": [
-        {
-          "title": "Manfred MacKeben (1940–2026)",
-          "name": "Manfred MacKeben",
-          "birthYear": 1940,
-          "deathYear": 2026,
-          "layout": "md-6",
-          "tags": [
-            "passings",
-            "vision-science",
-            "low-vision",
-            "attention",
-            "smith-kettlewell"
-          ],
-          "metadata": {
-            "dateOfPassing": "May 5, 2026",
-            "affiliation": "Smith-Kettlewell Eye Research Institute, San Francisco, California, USA",
-            "description": "A prominent vision scientist of five decades standing at the Smith-Kettlewell Eye Research Institute in San Francisco. He obtained his PhD in Physiology at the Freie University in Berlin with R. Eckmiller, and collaborated with him and then with K. Nakayama in a range of monkey cortical neurophysiology studies. He was the co-discoverer of the phenomenon of transient attention (Nakayama & Mackeben, 1989), and conducted extensive studies exploring how the brain selects and processes visual information in the periphery. His subsequent work, in collaboration with renowned low-vision specialists Drs A. Colenbrander and D. Fletcher, focused primarily on low vision rehabilitation, macular vision loss, and the development of diagnostic tools for visual impairment. Manfred went on to develop SKread (the Smith-Kettlewell Reading Test), which uses random word sequences to assess how vision-limiting factors—rather than reading skill—impact reading speed, and the Macular Mapping Test for letter acuity throughout the foveal region with a non-foveal ring of fixation guides. He also investigated the mechanics of Braille reading, specifically looking at \"regressions\" or movements where the reader moves back to re-read text.\n\nHe received the Constance Atwell Award from ARVO and the Lifetime Achievement Award in Low Vision Research from Envision University, Wichita, KS, for work focusing on researching facts and developing tools to help with the rehabilitation of people with low vision, especially those with macular vision loss."
-          }
-        },
-        {
-          "title": "Tim Meese (1966–2026)",
-          "name": "Tim Meese",
-          "birthYear": 1966,
-          "deathYear": 2026,
-          "layout": "md-6",
-          "tags": [
-            "passings",
-            "vision-science",
-            "binocular-vision",
-            "contrast-perception",
-            "psychophysics",
-            "uk"
-          ],
-          "metadata": {
-            "dateOfPassing": "2026",
-            "affiliation": "Aston University, Birmingham, United Kingdom",
-            "description": "Tim Meese was a leading vision scientist and Professor of Vision Science at Aston University whose research helped shape modern understanding of contrast perception, binocular vision, visual masking, gain control, and spatial vision. Over a career spanning more than three decades, he combined rigorous psychophysics, computational modeling, and theory to investigate how the visual system detects, integrates, and interprets visual information. His work on contrast gain control, binocular combination, and visual adaptation became foundational references within vision science and influenced generations of researchers studying perception and neural coding. He was also widely respected as a mentor, collaborator, and advocate for open and reproducible vision research."
-          }
-        },
-        {
-          "title": "Robert (Bob) M. Steinman (1927–2026)",
-          "name": "Robert M. Steinman",
-          "displayName": "Robert (Bob) M. Steinman",
-          "birthYear": 1927,
-          "deathYear": 2026,
-          "layout": "md-6",
-          "tags": [
-            "passings",
-            "vision-science",
-            "eye-movements",
-            "active-vision",
-            "maryland"
-          ],
-          "metadata": {
-            "dateOfPassing": "May 15, 2026",
-            "affiliation": "Department of Psychology, University of Maryland, College Park",
-            "description": "A pioneering vision scientist whose work transformed understanding of eye movements, fixation, and active vision. Originally trained in dentistry before moving into experimental psychology, Steinman became a leading figure in oculomotor research at the University of Maryland. His studies of microsaccades, smooth eye movements, fixation stability, anticipatory pursuit, and natural gaze behavior challenged prevailing assumptions about visual control and demonstrated the importance of active sensing in vision. He helped advance methods for precise eye and head movement measurement in freely moving observers and contributed foundational work on binocular gaze control, reading, vestibulo-ocular interactions, and visually guided action. His work anticipated modern theories of active vision and influenced generations of researchers in eye movement science and visual neuroscience."
-          }
-        },
-        {
-          "title": "Ariane Lévy-Schoen (1927–2026)",
-          "name": "Ariane Lévy-Schoen",
-          "birthYear": 1927,
-          "deathYear": 2026,
-          "layout": "md-6",
-          "tags": [
-            "passings",
-            "vision-science",
-            "eye-movements",
-            "france",
-            "cnrs"
-          ],
-          "metadata": {
-            "dateOfPassing": "March 23, 2026",
-            "affiliation": "Laboratoire de Psychologie Expérimentale, CNRS, Université René Descartes (EPHE, EHESS), Paris",
-            "description": "A leading figure in French vision science and Research Director at the CNRS, she trained in psychology, physics, and mathematics in Strasbourg, Paris, and New York. Her early research on children's perception of facial expressions earned her a Doctorate in Letters from the University of Paris (L'image d'autrui chez l'enfant, 1964). She then investigated active visual perception and visuomotor space in children and adults (with J. Blanc-Garin, J. Paillard, and V. Pouthas), before turning fully to eye movement control with L'Étude des mouvements oculaires (1969) and foundational work on saccadic programming (e.g., using simultaneous and sequential double stimulation - L’année Psychologique,1969, and with Blanc-Garin, Brain Research,1974). In the mid-1970s, with J. K. O'Regan, she revived research on eye movements in reading. They introduced the \"optimal viewing position\" concept (with J. Pynte and B. Brugaillère, 1984) and co-authored the strategy-and-tactics theory (Attention and Performance XII, 1987), which proposed an adaptive interplay between visuomotor and linguistic factors that shaped generations of reading models. They also co-founded the 'Groupe Regard,' a major European hub for eye movement research that trained researchers including C. Coëffé, A. Jacobs, T. Nazir, Z. Kapoula, F. Vitu, and R. Humbert, and fostered lasting collaborations with J. Findlay, H. Deubel, J. Pynte, and artists F. and V. Molnar. Co-edited with O'Regan Eye Movements: From Physiology to Cognition (1987), proceedings of the Third European Conference on Eye Movements, Dourdan, 1985."
-          }
-        }
-      ]
-    }
-  ]
-}
+  {
+    "id": "manfred-mackeben-1940-2026",
+    "title": "Manfred MacKeben (1940–2026)",
+    "name": "Manfred MacKeben",
+    "dateOfPassing": "May 5, 2026",
+    "affiliation": "Smith-Kettlewell Eye Research Institute, San Francisco, California, USA",
+    "description": "A prominent vision scientist of five decades standing at the Smith-Kettlewell Eye Research Institute in San Francisco. His work included cortical neurophysiology, transient attention, peripheral vision, low vision rehabilitation, macular vision loss, reading assessment, and diagnostic tools for visual impairment. He received the Constance Atwell Award from ARVO and the Lifetime Achievement Award in Low Vision Research from Envision University.",
+    "tags": ["passings", "vision-science", "low-vision", "attention", "smith-kettlewell", "memorial"]
+  },
+  {
+    "id": "tim-meese-1966-2026",
+    "title": "Tim Meese (1966–2026)",
+    "name": "Tim Meese",
+    "dateOfPassing": "2026",
+    "affiliation": "Aston University, Birmingham, United Kingdom",
+    "description": "A leading vision scientist and Professor of Vision Science at Aston University whose research helped shape modern understanding of contrast perception, binocular vision, visual masking, gain control, and spatial vision. He was widely respected as a mentor, collaborator, and advocate for open and reproducible vision research.",
+    "tags": ["passings", "vision-science", "binocular-vision", "contrast-perception", "psychophysics", "uk", "memorial"]
+  },
+  {
+    "id": "robert-m-steinman-1927-2026",
+    "title": "Robert (Bob) M. Steinman (1927–2026)",
+    "name": "Robert M. Steinman",
+    "dateOfPassing": "May 15, 2026",
+    "affiliation": "Department of Psychology, University of Maryland, College Park",
+    "description": "A pioneering vision scientist whose work transformed understanding of eye movements, fixation, and active vision. His research on microsaccades, smooth eye movements, fixation stability, anticipatory pursuit, and natural gaze behavior advanced theories of active vision and influenced generations of researchers in eye movement science and visual neuroscience.",
+    "tags": ["passings", "vision-science", "eye-movements", "active-vision", "maryland", "memorial"]
+  },
+  {
+    "id": "ariane-levy-schoen-1927-2026",
+    "title": "Ariane Lévy-Schoen (1927–2026)",
+    "name": "Ariane Lévy-Schoen",
+    "dateOfPassing": "March 23, 2026",
+    "affiliation": "Laboratoire de Psychologie Expérimentale, CNRS, Université René Descartes (EPHE, EHESS), Paris",
+    "description": "A leading figure in French vision science and Research Director at the CNRS. Her work spanned active visual perception, visuomotor space, eye movement control, saccadic programming, and eye movements in reading. With J. K. O'Regan, she helped revive research on eye movements in reading and co-edited Eye Movements: From Physiology to Cognition.",
+    "tags": ["passings", "vision-science", "eye-movements", "france", "cnrs", "memorial"]
+  }
+]
