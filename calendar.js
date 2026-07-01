@@ -14,7 +14,7 @@
   const DATA_BASE = "./";
 
 const CATEGORIES = [
-  { tag: "community",     label: "Community Events & Honors", file: "community events honors.json" },
+  { tag: "community",     label: "Community Events & Honors", file: "community events and honors.json" },
   { tag: "conferences",   label: "Conferences",               file: "conferences.json" },
   { tag: "online",        label: "Online Seminars/Clubs",     file: "online_seminars_clubs.json" },
   { tag: "special-issue", label: "Special & Feature Issues", file: "special_features_issues.json" },  
