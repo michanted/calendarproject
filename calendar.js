@@ -613,7 +613,6 @@ if (els.description) {
 }
 
 const CATEGORY_SUBFILTERS = {
-   
   online: [
     { label: "All", value: "" },
     { label: "Journal Clubs", value: "journal club" },
