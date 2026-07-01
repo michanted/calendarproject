@@ -366,22 +366,26 @@ function onCategorySubfilterClick(e) {
       const cat = getCategory(state.activeTag);
       items = state.cache.get(state.activeTag) || [];
       // Online Seminars subfilters
-if (state.activeTag === "online" && state.activeSubfilter) {
-  const q = state.activeSubfilter;
-  items = items.filter(i =>
-    `${i.title} ${i.description}`.toLowerCase().includes(q)
-  );
-}
+if (state.activeSubfilter) {
+  const f = state.activeSubfilter.toLowerCase();
 
-// Special / Feature Issues subfilters
-if (state.activeTag === "special-issue" && state.activeSubfilter) {
-  const f = state.activeSubfilter;
+  items = items.filter(item => {
+    const searchable = Object.values(item)
+      .join(" ")
+      .toLowerCase();
 
-  if (f === "popular") {
-    items = items.filter(i => i.isPopular === true);
-  } else if (f === "open" || f === "hybrid") {
-    items = items.filter(i => i.openAccessStatus === f);
-  }
+    if (f === "popular") {
+      return item.isPopular === true || searchable.includes("popular");
+    }
+
+    if (f === "open" || f === "hybrid") {
+      return String(item.openAccessStatus || item.status || "")
+        .toLowerCase()
+        .includes(f);
+    }
+
+    return searchable.includes(f);
+  });
 }
 
 
@@ -411,13 +415,11 @@ if (state.activeTag === "special-issue" && state.activeSubfilter) {
   renderCategorySubfilters();
   setStatus(`Loaded ${items.length} items in ${cat.label}.`);
 }
-      } else {
-        hidePopularConferenceButtons();
-        els.subfilters.innerHTML = "";
-        if (state.activeTag === "online") renderCategorySubfilters();
-        setStatus(`Loaded ${items.length} items in ${cat.label}.`);
-      }
-    }
+     } else {
+  hidePopularConferenceButtons();
+  renderCategorySubfilters();
+  setStatus(`Loaded ${items.length} items in ${cat.label}.`);
+}
 
 if (els.description) {
   const text = CATEGORY_DESCRIPTIONS[state.activeTag];
@@ -571,11 +573,7 @@ if (els.description) {
 }
 
 const CATEGORY_SUBFILTERS = {
-  conferences: [
-    { label: "All", value: "" },
-    { label: "Popular", value: "popular" },
-  ],
-
+   
   online: [
     { label: "All", value: "" },
     { label: "Journal Clubs", value: "journal club" },
