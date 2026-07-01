@@ -14,16 +14,56 @@
   const DATA_BASE = "./";
 
 const CATEGORIES = [
-  { tag: "community", label: "Community Events & Honors", file: "community_events_honors.json" },
-  { tag: "conferences",   label: "Conferences",               file: "conferences.json" },
-  { tag: "online",        label: "Online Seminars/Clubs",     file: "online_seminars_clubs.json" },
-  { tag: "special-issue", label: "Special & Feature Issues", file: "special_features_issues.json" },  
-  { tag: "education",     label: "Education",                 file: "education.json" },
-  { tag: "grad-program",  label: "Grad Programs",             file: "grad_programs.json" },
-  { tag: "jobs",          label: "Jobs",                      file: "jobs.json" },
-  { tag: "funding",       label: "Funding",                   file: "funding.json" },
-  { tag: "competitions",  label: "Competitions",              file: "competitions.json" },
-  { tag: "passings",      label: "Passings",                  file: "passings.json" }
+  {
+    tag: "community",
+    label: "Community Events & Honors",
+    file: "community_events_honors.json",
+  },
+  {
+    tag: "conferences",
+    label: "Conferences",
+    file: "conferences.json",
+  },
+  {
+    tag: "online",
+    label: "Online Seminars/Clubs",
+    file: "online_seminars_clubs.json",
+  },
+  {
+    tag: "special-issue",
+    label: "Special & Feature Issues",
+    file: "special_features_issues.json",
+  },
+  {
+    tag: "education",
+    label: "Education",
+    file: "education.json",
+  },
+  {
+    tag: "grad-program",
+    label: "Grad Programs",
+    file: "grad_programs.json",
+  },
+  {
+    tag: "jobs",
+    label: "Jobs",
+    file: "jobs.json",
+  },
+  {
+    tag: "funding",
+    label: "Funding",
+    file: "funding.json",
+  },
+  {
+    tag: "competitions",
+    label: "Competitions",
+    file: "competitions.json",
+  },
+  {
+    tag: "passings",
+    label: "Passings",
+    file: "passings.json",
+  },
 ];
 
 const CATEGORY_DESCRIPTIONS = {
