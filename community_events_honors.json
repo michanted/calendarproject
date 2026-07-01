@@ -1,19 +1,12 @@
-{
-  "communityEvents": [
-    {
-      "id": "icvs-smith-pokorny-2026",
-      "title": "ICVS Smith-Pokorny Award",
-      "subtitle": "Takuma Morimoto",
-      "year": 2026,
-      "recipient": "Dr. Takuma Morimoto",
-      "affiliation": "University of Oxford",
-      "organization": "International Colour Vision Society (ICVS)",
-      "tags": [
-        "community",
-        "award",
-        "color-vision",
-        "icvs"
-      ]
-    }
-  ]
-}
+[
+  {
+    "id": "icvs-smith-pokorny-2026",
+    "title": "ICVS Smith-Pokorny Award",
+    "subtitle": "Takuma Morimoto",
+    "year": 2026,
+    "recipient": "Dr. Takuma Morimoto",
+    "affiliation": "University of Oxford",
+    "organization": "International Colour Vision Society (ICVS)",
+    "tags": ["community", "award", "color-vision", "icvs"]
+  }
+]
